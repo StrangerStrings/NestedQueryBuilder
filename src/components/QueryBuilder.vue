@@ -23,7 +23,6 @@ function closeConditionPanel() {
     <h2>Query Builder</h2>
     <div class="editor-workspace" :class="{ 'has-selection': selectedCondition }">
       <div class="builder-content">
-        <p>Example predicates:</p>
         <div class="conditions">
           <QueryGroup :group="queryStore.query" @select="selectCondition" />
         </div>
@@ -55,5 +54,4 @@ function closeConditionPanel() {
   display: grid;
   gap: 0.5rem;
 }
-
 </style>
