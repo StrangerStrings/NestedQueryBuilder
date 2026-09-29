@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import ConditionFieldInput from './ConditionFieldInput.vue'
+import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
+
+const queryStore = useQueryStore()
 
 defineProps<{
   condition: QueryCondition
@@ -16,8 +20,7 @@ const emit = defineEmits<{
       <h3>Condition details</h3>
       <button type="button" @click="emit('close')">Close</button>
     </div>
-    <p>{{ condition.field || 'No field selected' }}</p>
-    <p class="placeholder">Condition settings will appear here.</p>
+    <ConditionFieldInput v-model="condition.field" :options="queryStore.uniqueFields" />
   </aside>
 </template>
 
@@ -53,8 +56,4 @@ button {
   cursor: pointer;
 }
 
-.placeholder {
-  color: #5b6472;
-  font-size: 0.875rem;
-}
 </style>
