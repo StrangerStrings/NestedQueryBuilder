@@ -3,6 +3,7 @@ export type QueryCondition = {
   kind: 'condition'
   id: string
   field: string
+  operatorId: string
 }
 
 /** A group that combines conditions or nested groups. */

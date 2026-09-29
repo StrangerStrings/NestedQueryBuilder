@@ -1,10 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
 
-defineProps<{
+const props = defineProps<{
   condition: QueryCondition
   editable?: boolean
 }>()
+
+const queryStore = useQueryStore()
+const operatorLabel = computed(
+  () => queryStore.operators.find((operator) => operator.id === props.condition.operatorId)?.label
+    ?? props.condition.operatorId,
+)
 
 const emit = defineEmits<{
   select: [condition: QueryCondition]
@@ -19,6 +27,7 @@ const emit = defineEmits<{
     @click="emit('select', condition)"
   >
     <span>{{ condition.field || 'Select a field' }}</span>
+    <span>{{ operatorLabel }}</span>
     <span class="placeholder">Condition details will appear here.</span>
   </button>
 </template>

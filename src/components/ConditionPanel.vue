@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ConditionFieldInput from './ConditionFieldInput.vue'
+import ConditionOperatorInput from './ConditionOperatorInput.vue'
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
 
@@ -21,6 +22,7 @@ const emit = defineEmits<{
       <button type="button" @click="emit('close')">Close</button>
     </div>
     <ConditionFieldInput v-model="condition.field" :options="queryStore.uniqueFields" />
+    <ConditionOperatorInput v-model="condition.operatorId" :options="queryStore.operators" />
   </aside>
 </template>
 

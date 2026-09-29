@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { QueryCondition, QueryGroup } from '../types/query'
+import { databaseDefinitions } from '../data/databases'
 import { createId } from '../utils/createId'
 
 export type DatabaseId = 'postgresql' | 'elasticsearch'
@@ -15,17 +16,20 @@ function createEmptyQuery(): QueryGroup {
       {
         kind: 'condition',
         id: createId(),
-        field: 'status'
+        field: 'status',
+        operatorId: 'postgresql.eq'
       },
       {
         kind: 'condition',
         id: createId(),
-        field: 'tatters'
+        field: 'tatters',
+        operatorId: 'postgresql.eq'
       },
       {
         kind: 'condition',
         id: createId(),
-        field: 'age'
+        field: 'age',
+        operatorId: 'postgresql.eq'
       }
     ],
   }
@@ -89,6 +93,7 @@ function getConditions(group: QueryGroup): QueryCondition[] {
 export const useQueryStore = defineStore('query', () => {
   const database = ref<DatabaseId>('postgresql')
   const query = ref<QueryGroup>(createEmptyQuery())
+  const operators = computed(() => databaseDefinitions[database.value].operators)
 
   // Collect distinct nonempty fields from every condition, including nested groups.
   const uniqueFields = computed(() => {
@@ -119,6 +124,7 @@ export const useQueryStore = defineStore('query', () => {
     }
   }
 
+  // Add a condition with the default PostgreSQL equality operator ID.
   function addCondition(groupId: string) {
     const group = findGroupById(query.value, groupId)
 
@@ -126,7 +132,8 @@ export const useQueryStore = defineStore('query', () => {
       group.children.push({
         id: createId(),
         kind: 'condition',
-        field: 'status'
+        field: 'status',
+        operatorId: 'postgresql.eq'
       })
     }
   }
@@ -154,6 +161,7 @@ export const useQueryStore = defineStore('query', () => {
   return {
     database,
     query,
+    operators,
     uniqueFields,
     changeDatabase,
     cycleGroupMode,
