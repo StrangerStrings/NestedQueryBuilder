@@ -20,7 +20,6 @@ function closeConditionPanel() {
 
 <template>
   <section>
-    <h2>Query Builder</h2>
     <div class="editor-workspace" :class="{ 'has-selection': selectedCondition }">
       <div class="builder-content">
         <div class="conditions">

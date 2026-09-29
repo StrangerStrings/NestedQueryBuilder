@@ -1,14 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import ConditionFieldInput from './ConditionFieldInput.vue'
 import ConditionOperatorInput from './ConditionOperatorInput.vue'
+import ConditionValueInput from './ConditionValueInput/ConditionValueInput.vue'
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
 
 const queryStore = useQueryStore()
 
-defineProps<{
+const props = defineProps<{
   condition: QueryCondition
 }>()
+
+// Resolve the selected operator metadata for the current condition.
+const selectedOperator = computed(() => queryStore.operators.find(
+  (operator) => operator.id === props.condition.operatorId,
+))
 
 const emit = defineEmits<{
   close: []
@@ -23,6 +30,11 @@ const emit = defineEmits<{
     </div>
     <ConditionFieldInput v-model="condition.field" :options="queryStore.uniqueFields" />
     <ConditionOperatorInput v-model="condition.operatorId" :options="queryStore.operators" />
+    <ConditionValueInput
+      v-if="selectedOperator"
+      v-model="condition.value"
+      :operator="selectedOperator"
+    />
   </aside>
 </template>
 

@@ -28,7 +28,7 @@ const emit = defineEmits<{
   >
     <span>{{ condition.field || 'Select a field' }}</span>
     <span>{{ operatorLabel }}</span>
-    <span class="placeholder">Condition details will appear here.</span>
+    <span v-if="condition.value">{{ condition.value }}</span>
   </button>
 </template>
 

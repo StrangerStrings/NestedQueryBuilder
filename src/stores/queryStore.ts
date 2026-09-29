@@ -17,19 +17,22 @@ function createEmptyQuery(): QueryGroup {
         kind: 'condition',
         id: createId(),
         field: 'status',
-        operatorId: 'postgresql.eq'
+        operatorId: 'postgresql.eq',
+        value: 'online'
       },
       {
         kind: 'condition',
         id: createId(),
         field: 'tatters',
-        operatorId: 'postgresql.eq'
+        operatorId: 'postgresql.eq',
+        value: 'yes'
       },
       {
         kind: 'condition',
         id: createId(),
         field: 'age',
-        operatorId: 'postgresql.eq'
+        operatorId: 'postgresql.eq',
+        value: '35'
       }
     ],
   }
@@ -133,7 +136,8 @@ export const useQueryStore = defineStore('query', () => {
         id: createId(),
         kind: 'condition',
         field: 'status',
-        operatorId: 'postgresql.eq'
+        operatorId: 'postgresql.eq',
+        value: ''
       })
     }
   }
