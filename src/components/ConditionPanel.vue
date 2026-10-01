@@ -13,9 +13,9 @@ const props = defineProps<{
 }>()
 
 // Resolve the selected operator metadata for the current condition.
-const selectedOperator = computed(() => queryStore.operators.find(
-  (operator) => operator.id === props.condition.operatorId,
-))
+const selectedOperator = computed(() =>
+  queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
+)
 
 const emit = defineEmits<{
   close: []
@@ -28,11 +28,20 @@ const emit = defineEmits<{
       <h3>Condition details</h3>
       <button type="button" @click="emit('close')">Close</button>
     </div>
-    <ConditionFieldInput v-model="condition.field" :options="queryStore.uniqueFields" />
-    <ConditionOperatorInput v-model="condition.operatorId" :options="queryStore.operators" />
+    <ConditionFieldInput
+      :model-value="condition.field"
+      :options="queryStore.uniqueFields"
+      @update:model-value="queryStore.updateCondition(condition.id, { field: $event })"
+    />
+    <ConditionOperatorInput
+      :model-value="condition.operatorId"
+      :options="queryStore.operators"
+      @update:model-value="queryStore.updateCondition(condition.id, { operatorId: $event })"
+    />
     <ConditionValueInput
       v-if="selectedOperator"
-      v-model="condition.value"
+      :model-value="condition.value"
+      @update:model-value="queryStore.updateCondition(condition.id, { value: $event })"
       :operator="selectedOperator"
     />
   </aside>
@@ -69,5 +78,4 @@ button {
   color: #5b6472;
   cursor: pointer;
 }
-
 </style>

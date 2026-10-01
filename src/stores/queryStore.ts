@@ -1,7 +1,13 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { QueryCondition, QueryGroup } from '../types/query'
 import { databaseDefinitions } from '../data/databases'
+import {
+  assignFieldColours,
+  assignConditionColours,
+  getConditionColour as resolveConditionColour,
+} from '../colours/fieldColours'
+import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
 
 export type DatabaseId = 'postgresql' | 'elasticsearch'
@@ -18,22 +24,49 @@ function createEmptyQuery(): QueryGroup {
         id: createId(),
         field: 'status',
         operatorId: 'postgresql.eq',
-        value: 'online'
+        value: 'online',
       },
       {
         kind: 'condition',
         id: createId(),
         field: 'tatters',
         operatorId: 'postgresql.eq',
-        value: 'yes'
+        value: 'yes',
       },
       {
         kind: 'condition',
         id: createId(),
         field: 'age',
         operatorId: 'postgresql.eq',
-        value: '35'
-      }
+        value: '35',
+      },
+            {
+        kind: 'condition',
+        id: createId(),
+        field: 'asdf',
+        operatorId: 'postgresql.eq',
+        value: 'online',
+      },      {
+        kind: 'condition',
+        id: createId(),
+        field: 'trew',
+        operatorId: 'postgresql.eq',
+        value: 'online',
+      },
+            {
+        kind: 'condition',
+        id: createId(),
+        field: 'rewwer',
+        operatorId: 'postgresql.eq',
+        value: 'online',
+      },
+            {
+        kind: 'condition',
+        id: createId(),
+        field: 'age',
+        operatorId: 'postgresql.eq',
+        value: 'online',
+      },
     ],
   }
 }
@@ -71,6 +104,7 @@ function removeNodeFromGroup(group: QueryGroup, nodeId: string): boolean {
   return false
 }
 
+// Find an existing condition recursively by its stable identifier.
 function findConditionById(group: QueryGroup, conditionId: string): QueryCondition | undefined {
   for (const child of group.children) {
     if (child.kind === 'condition' && child.id === conditionId) {
@@ -93,10 +127,62 @@ function getConditions(group: QueryGroup): QueryCondition[] {
   )
 }
 
+// Manage the query tree and its persistent field-colour assignments.
 export const useQueryStore = defineStore('query', () => {
   const database = ref<DatabaseId>('postgresql')
   const query = ref<QueryGroup>(createEmptyQuery())
   const operators = computed(() => databaseDefinitions[database.value].operators)
+
+  // Save active colours, transferring unused assignments as condition fields change.
+  function reserveConditionColours(
+    conditions: { id: string; field: string }[],
+    previousConditions: { id: string; field: string }[] = [],
+  ) {
+    const assignments = assignFieldColours(
+      conditions,
+      query.value.fieldColours,
+      previousConditions,
+    )
+
+    if (assignments !== query.value.fieldColours) {
+      query.value.fieldColours = assignments
+    }
+
+    const conditionAssignments = assignConditionColours(
+      conditions,
+      assignments,
+      query.value.conditionColours,
+      previousConditions,
+    )
+    if (conditionAssignments !== query.value.conditionColours) {
+      query.value.conditionColours = conditionAssignments
+    }
+  }
+
+  // Batch tree updates so moving a condition does not temporarily release its colour.
+  watch(
+    () =>
+      getConditions(query.value).map((condition) => ({
+        id: condition.id,
+        field: condition.field.trim(),
+      })),
+    reserveConditionColours,
+    { immediate: true, flush: 'pre' },
+  )
+
+  // Update condition details through the store rather than mutating component props.
+  function updateCondition(
+    conditionId: string,
+    updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value'>>,
+  ) {
+    const condition = findConditionById(query.value, conditionId)
+    if (condition) Object.assign(condition, updates)
+  }
+
+  // Resolve the condition's saved shade in the family associated with its field.
+  function getConditionColour(condition: QueryCondition): ConditionColour | undefined {
+    return resolveConditionColour(condition, query.value.conditionColours)
+  }
 
   // Collect distinct nonempty fields from every condition, including nested groups.
   const uniqueFields = computed(() => {
@@ -127,21 +213,27 @@ export const useQueryStore = defineStore('query', () => {
     }
   }
 
-  // Add a condition with the default PostgreSQL equality operator ID.
+  // Create a blank-valued condition using the current database and an existing field.
+  function createCondition(): QueryCondition {
+    return {
+      id: createId(),
+      kind: 'condition',
+      field: uniqueFields.value[0] ?? '',
+      operatorId: operators.value[0]?.id ?? '',
+      value: '',
+    }
+  }
+
+  // Add a condition with defaults derived from the current query and database.
   function addCondition(groupId: string) {
     const group = findGroupById(query.value, groupId)
 
     if (group) {
-      group.children.push({
-        id: createId(),
-        kind: 'condition',
-        field: 'status',
-        operatorId: 'postgresql.eq',
-        value: ''
-      })
+      group.children.push(createCondition())
     }
   }
 
+  // Add a group containing one condition with the current query and database defaults.
   function addGroup(groupId: string) {
     const group = findGroupById(query.value, groupId)
 
@@ -150,7 +242,7 @@ export const useQueryStore = defineStore('query', () => {
         id: createId(),
         kind: 'group',
         mode: 'all',
-        children: [],
+        children: [createCondition()],
       })
     }
   }
@@ -166,11 +258,14 @@ export const useQueryStore = defineStore('query', () => {
     database,
     query,
     operators,
+    getConditionColour,
+    updateCondition,
     uniqueFields,
     changeDatabase,
     cycleGroupMode,
+    createCondition,
     addCondition,
     addGroup,
-    removeNode
+    removeNode,
   }
 })

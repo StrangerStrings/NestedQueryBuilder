@@ -1,20 +1,37 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useQueryStore } from '../stores/queryStore'
-import type { QueryCondition } from '../types/query'
+import type { QueryCondition, QueryGroup as QueryGroupModel } from '../types/query'
 import ConditionPanel from './ConditionPanel.vue'
 import QueryGroup from './QueryGroup.vue'
 
 const queryStore = useQueryStore()
-const selectedCondition = ref<QueryCondition | null>(null)
+const selectedConditionId = ref<string | null>(null)
 
-function selectCondition(condition: QueryCondition) {
-  selectedCondition.value = condition
+// Resolve the selection from the current tree so deleted conditions close their panel.
+function findSelectedCondition(group: QueryGroupModel): QueryCondition | null {
+  for (const child of group.children) {
+    if (child.kind === 'condition' && child.id === selectedConditionId.value) return child
+    if (child.kind === 'group') {
+      const condition = findSelectedCondition(child)
+      if (condition) return condition
+    }
+  }
+  return null
 }
 
+// Keep the details panel tied to a condition that still exists in the query.
+const selectedCondition = computed(() => findSelectedCondition(queryStore.query))
+
+// Select a condition by its stable identifier.
+function selectCondition(condition: QueryCondition) {
+  selectedConditionId.value = condition.id
+}
+
+// Clear the current condition selection.
 function closeConditionPanel() {
-  selectedCondition.value = null
+  selectedConditionId.value = null
 }
 </script>
 
@@ -23,7 +40,11 @@ function closeConditionPanel() {
     <div class="editor-workspace" :class="{ 'has-selection': selectedCondition }">
       <div class="builder-content">
         <div class="conditions">
-          <QueryGroup :group="queryStore.query" @select="selectCondition" />
+          <QueryGroup
+            :group="queryStore.query"
+            :selected-condition-id="selectedCondition?.id"
+            @select="selectCondition"
+          />
         </div>
       </div>
       <Transition name="panel">
