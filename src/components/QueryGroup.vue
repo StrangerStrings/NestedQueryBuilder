@@ -100,6 +100,7 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
   display: grid;
   gap: 0.5rem;
   padding: 0.75rem 0.75rem 2.75rem 2.75rem;
+  margin: 5px 0;
   border: 4px solid var(--group-border-color);
   border-radius: 36px;
   background: #fff;

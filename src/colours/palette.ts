@@ -13,10 +13,10 @@ export const conditionColourFamilies = [
 
 /** Light-theme background variants, in stable identifier order. */
 export const conditionColourVariants = [
-  { id: 1, lightness: 0.78, chroma: 0.085, hueOffset: -8 },
-  { id: 2, lightness: 0.84, chroma: 0.065, hueOffset: 0 },
-  { id: 3, lightness: 0.9, chroma: 0.045, hueOffset: 8 },
-  { id: 4, lightness: 0.96, chroma: 0.025, hueOffset: 0 },
+  { id: 1, lightness: 0.9, chroma: 0.055, hueOffset: 8 },
+  { id: 2, lightness: 0.86, chroma: 0.065, hueOffset: 0 },
+  { id: 3, lightness: 0.83, chroma: 0.085, hueOffset: -8 },
+  { id: 4, lightness: 0.94, chroma: 0.025, hueOffset: 0 },
 ] as const
 
 export type ConditionColourFamily = (typeof conditionColourFamilies)[number]

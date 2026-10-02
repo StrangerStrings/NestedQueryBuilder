@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 
 const queryStore = useQueryStore()
-// Resolve operator metadata for the display label and required-value validation.
+// Resolve operator metadata for the display label and operator validation.
 const operator = computed(() =>
   queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
 )
@@ -29,13 +29,8 @@ const colourStyle = computed(() => {
     : undefined
 })
 
-// Mark incomplete conditions for the visual validation indicator.
-const isInvalid = computed(
-  () =>
-    !props.condition.field.trim() ||
-    !operator.value ||
-    (operator.value.requiresValue && !props.condition.value.trim()),
-)
+// Validate the field and operator; empty and whitespace-only string values are valid.
+const isInvalid = computed(() => !props.condition.field.trim() || !operator.value)
 
 const emit = defineEmits<{
   select: [condition: QueryCondition]

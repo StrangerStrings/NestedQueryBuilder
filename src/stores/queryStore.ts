@@ -9,6 +9,8 @@ import {
 } from '../colours/fieldColours'
 import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
+import { importSqlWhere, type ImportWhereResult } from '../utils/importWhere'
+import { generateWhereSql, type GenerateWhereSqlResult } from '../utils/generateWhereSql'
 
 export type DatabaseId = 'postgresql' | 'elasticsearch'
 
@@ -132,6 +134,18 @@ export const useQueryStore = defineStore('query', () => {
   const database = ref<DatabaseId>('postgresql')
   const query = ref<QueryGroup>(createEmptyQuery())
   const operators = computed(() => databaseDefinitions[database.value].operators)
+
+  // Regenerate SQL whenever the current query tree's fields, values, or structure change.
+  const whereSqlResult = computed<GenerateWhereSqlResult>(() => generateWhereSql(query.value))
+
+  // Replace the tree on successful import; the existing watcher assigns imported condition colours.
+  function importSqlFilter(filter: string): ImportWhereResult {
+    const result = importSqlWhere(filter)
+    if (result.success) {
+      query.value = result.tree
+    }
+    return result
+  }
 
   // Save active colours, transferring unused assignments as condition fields change.
   function reserveConditionColours(
@@ -258,6 +272,8 @@ export const useQueryStore = defineStore('query', () => {
     database,
     query,
     operators,
+    whereSqlResult,
+    importSqlFilter,
     getConditionColour,
     updateCondition,
     uniqueFields,
