@@ -30,16 +30,14 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
 
 <template>
   <section class="query-group" :class="`mode-${group.mode}`">
-    <div class="group-header">
-      <button
-        type="button"
-        class="mode-badge"
-        aria-label="Cycle group mode"
-        @click="queryStore.cycleGroupMode(group.id)"
-      >
-        <h3>{{ group.mode }}</h3>
-      </button>
-    </div>
+    <button
+      type="button"
+      class="mode-badge"
+      aria-label="Cycle group mode"
+      @click="queryStore.cycleGroupMode(group.id)"
+    >
+      <h3>{{ group.mode }}</h3>
+    </button>
     <div class="children">
       <template v-for="child in group.children" :key="child.id">
         <QueryCondition
@@ -58,10 +56,7 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
         />
       </template>
     </div>
-    <div
-      class="group-actions"
-      :class="{ 'root-group-actions': group.id === queryStore.query.id }"
-    >
+    <div class="group-actions" :class="{ 'root-group-actions': group.id === queryStore.query.id }">
       <button
         type="button"
         class="icon-button"
@@ -115,13 +110,6 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
 .query-group.mode-none {
   --group-border-color: #4a5361;
   --mode-badge-color: #4a5361;
-}
-
-.group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
 }
 
 .group-actions {

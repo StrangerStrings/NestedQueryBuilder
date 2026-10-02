@@ -54,11 +54,7 @@ const emit = defineEmits<{
     :style="colourStyle"
     @click="editable && emit('select', condition)"
   >
-    <button
-      type="button"
-      class="condition-content"
-      :disabled="!editable"
-    >
+    <button type="button" class="condition-content" :disabled="!editable">
       <span class="condition-field">{{ condition.field.trim() || 'Select a field' }}</span>
       <span class="condition-operator">{{ operatorLabel }}</span>
       <span v-if="condition.value.hasValue" class="condition-value">

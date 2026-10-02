@@ -1,8 +1,7 @@
 import { toSql, type Expr } from 'pgsql-ast-parser'
 
 export type SerializeWhereExpressionResult =
-  | { success: true; sql: string }
-  | { success: false; error: string }
+  { success: true; sql: string } | { success: false; error: string }
 
 // Use SQL precedence to keep only necessary brackets, retaining library escaping and fallback output.
 function serializeReadableExpression(expression: Expr, parentPrecedence = 0): string {

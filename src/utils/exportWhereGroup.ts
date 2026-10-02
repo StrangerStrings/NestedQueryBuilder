@@ -3,16 +3,14 @@ import type { QueryGroup } from '../types/query'
 import { exportWhereCondition } from './exportWhereCondition'
 
 export type ExportWhereGroupResult =
-  | { success: true; expression: Expr | null }
-  | { success: false; error: string; nodeId: string }
+  { success: true; expression: Expr | null } | { success: false; error: string; nodeId: string }
 
 // Omit empty children and propagate conversion errors with the offending node's ID.
 export function exportWhereGroup(group: QueryGroup): ExportWhereGroupResult {
   const expressions: Expr[] = []
 
   for (const child of group.children) {
-    const result =
-      child.kind === 'group' ? exportWhereGroup(child) : exportWhereCondition(child)
+    const result = child.kind === 'group' ? exportWhereGroup(child) : exportWhereCondition(child)
     if (!result.success) return result
     if (result.expression === null) continue
 

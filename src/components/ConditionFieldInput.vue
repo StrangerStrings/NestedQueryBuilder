@@ -52,9 +52,12 @@ async function moveHighlight(direction: 1 | -1) {
   if (!count) return
 
   suggestionsOpen.value = true
-  highlightedIndex.value = highlightedIndex.value === -1
-    ? (direction === 1 ? 0 : count - 1)
-    : (highlightedIndex.value + direction + count) % count
+  highlightedIndex.value =
+    highlightedIndex.value === -1
+      ? direction === 1
+        ? 0
+        : count - 1
+      : (highlightedIndex.value + direction + count) % count
 
   await nextTick()
   optionsList.value?.children[highlightedIndex.value]?.scrollIntoView({ block: 'nearest' })
@@ -87,9 +90,9 @@ watch(filteredOptions, () => {
         aria-autocomplete="list"
         :aria-expanded="suggestionsOpen && filteredOptions.length > 0"
         :aria-controls="suggestionsOpen && filteredOptions.length ? optionsId : undefined"
-        :aria-activedescendant="suggestionsOpen && highlightedIndex >= 0
-          ? `${optionsId}-${highlightedIndex}`
-          : undefined"
+        :aria-activedescendant="
+          suggestionsOpen && highlightedIndex >= 0 ? `${optionsId}-${highlightedIndex}` : undefined
+        "
         @focus="suggestionsOpen = true"
         @input="handleInput"
         @blur="closeSuggestions"

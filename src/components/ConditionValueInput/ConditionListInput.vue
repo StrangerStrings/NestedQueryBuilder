@@ -19,7 +19,8 @@ const listValue = computed(() => {
     value.hasValue &&
     value.dataShape === 'list' &&
     (value.dataType === 'text' || value.dataType === 'number' || value.dataType === 'boolean')
-  ) return value
+  )
+    return value
   return undefined
 })
 
@@ -64,16 +65,18 @@ function publishRows() {
 // Edit one row without changing the identities or values of the other rows.
 function editRow(id: string, value: string | number | boolean) {
   if (!rows.value.some((row) => row.id === id)) return
-  rows.value = rows.value.map((row) => row.id === id ? { ...row, value } : row)
+  rows.value = rows.value.map((row) => (row.id === id ? { ...row, value } : row))
   publishRows()
 }
 
 // Focus the row's input or selected boolean button after structural changes.
 async function focusRow(id: string) {
   await nextTick()
-  root.value?.querySelector<HTMLElement>(
-    `[data-row-id="${id}"] input, [data-row-id="${id}"] button[aria-pressed="true"]`,
-  )?.focus()
+  root.value
+    ?.querySelector<HTMLElement>(
+      `[data-row-id="${id}"] input, [data-row-id="${id}"] button[aria-pressed="true"]`,
+    )
+    ?.focus()
 }
 
 // Append one default item and focus it without recreating existing rows.

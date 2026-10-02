@@ -215,11 +215,7 @@ export const useQueryStore = defineStore('query', () => {
     conditions: { id: string; field: string }[],
     previousConditions: { id: string; field: string }[] = [],
   ) {
-    const assignments = assignFieldColours(
-      conditions,
-      query.value.fieldColours,
-      previousConditions,
-    )
+    const assignments = assignFieldColours(conditions, query.value.fieldColours, previousConditions)
 
     if (assignments !== query.value.fieldColours) {
       query.value.fieldColours = assignments

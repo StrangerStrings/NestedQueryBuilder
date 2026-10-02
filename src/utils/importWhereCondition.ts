@@ -4,8 +4,7 @@ import { createId } from './createId'
 import { createImportWhereError, type ImportWhereError } from './importWhereError'
 
 export type ImportWhereConditionResult =
-  | { success: true; condition: QueryCondition }
-  | { success: false; error: ImportWhereError }
+  { success: true; condition: QueryCondition } | { success: false; error: ImportWhereError }
 
 // Convert a supported leaf or report its unsupported operator, expression, or value.
 export function importWhereCondition(expression: Expr): ImportWhereConditionResult {

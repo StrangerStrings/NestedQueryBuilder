@@ -69,7 +69,6 @@ function commitNumber(event: Event) {
 function editText(event: Event) {
   emit('update:modelValue', (event.currentTarget as HTMLInputElement).value)
 }
-
 </script>
 
 <template>

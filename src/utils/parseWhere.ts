@@ -1,8 +1,7 @@
 import { parse, type Expr } from 'pgsql-ast-parser'
 
 export type ParseWhereResult =
-  | { success: true; expression: Expr | null }
-  | { success: false; error: string }
+  { success: true; expression: Expr | null } | { success: false; error: string }
 
 // Parse one SQL filter, rejecting extra statements or clauses outside its WHERE expression.
 export function parseWhere(filter: string): ParseWhereResult {

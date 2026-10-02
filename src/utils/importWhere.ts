@@ -6,12 +6,10 @@ import { createImportWhereError, type ImportWhereError } from './importWhereErro
 import { parseWhere } from './parseWhere'
 
 export type ImportWhereResult =
-  | { success: true; tree: QueryGroup }
-  | { success: false; error: ImportWhereError }
+  { success: true; tree: QueryGroup } | { success: false; error: ImportWhereError }
 
 type ImportWhereNodeResult =
-  | { success: true; node: QueryNode }
-  | { success: false; error: ImportWhereError }
+  { success: true; node: QueryNode } | { success: false; error: ImportWhereError }
 
 // Recursively convert logical nesting, returning the first leaf error without a partial tree.
 function importWhereNode(expression: Expr): ImportWhereNodeResult {

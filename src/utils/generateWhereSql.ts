@@ -3,8 +3,7 @@ import { exportWhere } from './exportWhere'
 import { serializeWhereExpression } from './serializeWhereExpression'
 
 export type GenerateWhereSqlResult =
-  | { success: true; sql: string }
-  | { success: false; error: string; nodeId?: string }
+  { success: true; sql: string } | { success: false; error: string; nodeId?: string }
 
 // Export and serialize a complete filter, preserving conversion errors and their node IDs.
 export function generateWhereSql(root: QueryGroup): GenerateWhereSqlResult {

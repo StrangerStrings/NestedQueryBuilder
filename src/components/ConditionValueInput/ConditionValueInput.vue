@@ -58,21 +58,30 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
       'update:modelValue',
       current.dataShape === 'single'
         ? { ...current, value }
-        : { ...current, value: endpoint === 0 ? [value, current.value[1]] : [current.value[0], value] },
+        : {
+            ...current,
+            value: endpoint === 0 ? [value, current.value[1]] : [current.value[0], value],
+          },
     )
   } else if (current.dataType === 'number' && typeof value === 'number') {
     emit(
       'update:modelValue',
       current.dataShape === 'single'
         ? { ...current, value }
-        : { ...current, value: endpoint === 0 ? [value, current.value[1]] : [current.value[0], value] },
+        : {
+            ...current,
+            value: endpoint === 0 ? [value, current.value[1]] : [current.value[0], value],
+          },
     )
   } else if (current.dataType === 'boolean' && typeof value === 'boolean') {
     emit(
       'update:modelValue',
       current.dataShape === 'single'
         ? { ...current, value }
-        : { ...current, value: endpoint === 0 ? [value, current.value[1]] : [current.value[0], value] },
+        : {
+            ...current,
+            value: endpoint === 0 ? [value, current.value[1]] : [current.value[0], value],
+          },
     )
   }
 }

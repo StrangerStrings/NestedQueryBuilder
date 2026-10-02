@@ -1,4 +1,4 @@
-import { postgresqlOperators } from "./postgresql/operators";
+import { postgresqlOperators } from './postgresql/operators'
 
 export const databaseDefinitions = {
   postgresql: {

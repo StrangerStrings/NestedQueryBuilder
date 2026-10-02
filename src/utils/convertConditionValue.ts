@@ -52,9 +52,7 @@ function convertShape<T extends Scalar>(
       ? [source.value]
       : source.value
     : []
-  const converted = Array.from(items, (value) =>
-    value == null ? defaultValue : convert(value),
-  )
+  const converted = Array.from(items, (value) => (value == null ? defaultValue : convert(value)))
   const first = converted[0] ?? defaultValue
 
   if (shape === 'single') return { dataShape: 'single', value: first }

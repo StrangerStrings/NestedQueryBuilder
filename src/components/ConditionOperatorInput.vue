@@ -12,8 +12,8 @@ const emit = defineEmits<{
 }>()
 
 // Read the description for the currently selected operator.
-const operatorDescription = computed(() =>
-  props.options.find((operator) => operator.id === props.modelValue)?.description ?? '',
+const operatorDescription = computed(
+  () => props.options.find((operator) => operator.id === props.modelValue)?.description ?? '',
 )
 
 // Allow all implemented shapes and disable only operators without a supported scalar type.

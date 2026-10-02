@@ -2,8 +2,7 @@ import type { Expr, ExprRef } from 'pgsql-ast-parser'
 import type { QueryCondition } from '../types/query'
 
 export type ExportWhereConditionResult =
-  | { success: true; expression: Expr }
-  | { success: false; error: string; nodeId: string }
+  { success: true; expression: Expr } | { success: false; error: string; nodeId: string }
 
 // Export string contents exactly, including blanks, while validating the field and operator.
 export function exportWhereCondition(condition: QueryCondition): ExportWhereConditionResult {
