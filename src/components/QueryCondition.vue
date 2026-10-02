@@ -18,6 +18,16 @@ const operator = computed(() =>
 // Keep the stored operator ID visible when its metadata is unavailable.
 const operatorLabel = computed(() => operator.value?.label ?? props.condition.operatorId)
 
+// Show list items explicitly, including empty text and falsy values, while preserving other summaries.
+const valueLabel = computed(() => {
+  const value = props.condition.value
+  if (!value.hasValue) return ''
+  if (value.dataShape === 'list') {
+    return `[${value.value.map((item) => JSON.stringify(item)).join(', ')}]`
+  }
+  return typeof value.value === 'string' ? JSON.stringify(value.value) : value.value
+})
+
 // Apply this condition's saved shade within its field's shared colour family.
 const colourStyle = computed(() => {
   const colour = queryStore.getConditionColour(props.condition)
@@ -51,7 +61,9 @@ const emit = defineEmits<{
     >
       <span class="condition-field">{{ condition.field.trim() || 'Select a field' }}</span>
       <span class="condition-operator">{{ operatorLabel }}</span>
-      <span v-if="condition.value" class="condition-value">{{ condition.value }}</span>
+      <span v-if="condition.value.hasValue" class="condition-value">
+        {{ valueLabel }}
+      </span>
     </button>
     <span
       v-if="isInvalid"
@@ -167,6 +179,7 @@ const emit = defineEmits<{
 .condition-delete:hover,
 .condition-delete:focus-visible {
   background: rgba(0, 0, 0, 0.06);
+  color: #172033;
 }
 
 .condition-delete .material-symbols-outlined {

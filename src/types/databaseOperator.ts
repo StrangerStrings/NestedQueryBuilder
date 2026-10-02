@@ -1,6 +1,6 @@
 type ValueDataShape = 'single' | 'list' | 'range'
 
-type ValueDataType =
+export type ValueDataType =
   | 'text'
   | 'number'
   | 'boolean'
@@ -13,7 +13,7 @@ type ValueInput =
   | { hasValue: false }
   | {
       hasValue: true
-      dataShapes: ValueDataShape[]
+      dataShape: ValueDataShape
       dataTypes: ValueDataType[]
     }
 

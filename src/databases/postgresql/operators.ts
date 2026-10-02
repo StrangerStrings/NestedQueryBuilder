@@ -7,7 +7,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values that are equal to the supplied value.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['single'],
+      dataShape: 'single',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -17,7 +17,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values that are not equal to the supplied value.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['single'],
+      dataShape: 'single',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -27,7 +27,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values that are greater than the supplied value.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['single'],
+      dataShape: 'single',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -37,7 +37,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values that are greater than or equal to the supplied value.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['single'],
+      dataShape: 'single',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -47,7 +47,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values that are less than the supplied value.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['single'],
+      dataShape: 'single',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -57,7 +57,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values that are less than or equal to the supplied value.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['single'],
+      dataShape: 'single',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -67,7 +67,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values within a range, including both endpoints.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['range'],
+      dataShape: 'range',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -77,7 +77,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values below the lower bound or above the upper bound of a range.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['range'],
+      dataShape: 'range',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -87,7 +87,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
     description: 'Matches values that are equal to any value in the supplied list.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['list'],
+      dataShape: 'list',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -98,7 +98,7 @@ export const postgresqlOperators: DatabaseOperator[] = [
       'Matches values that are not equal to any value in the supplied list. A NULL in the list prevents unmatched values from matching.',
     valueInput: {
       hasValue: true,
-      dataShapes: ['list'],
+      dataShape: 'list',
       dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
     },
   },
@@ -119,28 +119,28 @@ export const postgresqlOperators: DatabaseOperator[] = [
     label: 'matches pattern',
     description:
       'Matches a text pattern, where % represents any number of characters and _ represents one character.',
-    valueInput: { hasValue: true, dataShapes: ['single'], dataTypes: ['text'] },
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
     id: 'NOT LIKE',
     label: 'not match pattern',
     description:
       'Matches text that does not match the supplied pattern. Use % for any number of characters and _ for one character.',
-    valueInput: { hasValue: true, dataShapes: ['single'], dataTypes: ['text'] },
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
     id: 'ILIKE',
     label: 'matches pattern, ignore case',
     description:
       'Matches a text pattern, ignoring case. Use % for any number of characters and _ for one character.',
-    valueInput: { hasValue: true, dataShapes: ['single'], dataTypes: ['text'] },
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
     id: 'NOT ILIKE',
     label: 'not match pattern, ignore case',
     description:
       'Matches text that does not match the supplied pattern, ignoring case. Use % for any number of characters and _ for one character.',
-    valueInput: { hasValue: true, dataShapes: ['single'], dataTypes: ['text'] },
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
     id: 'IS TRUE',

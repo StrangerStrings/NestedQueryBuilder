@@ -1,4 +1,29 @@
 import type { ConditionColourAssignments, FieldColourAssignments } from '../colours/fieldColours'
+import type { ValueDataType } from './databaseOperator'
+
+type ValueTypeMap = {
+  text: string
+  number: number
+  boolean: boolean
+  date: string
+  time: string
+  datetime: string
+  duration: string
+}
+
+/** A condition's selected value type, input shape, and value. */
+export type ConditionValue =
+  | { hasValue: false }
+  | {
+      [T in ValueDataType]: {
+        hasValue: true
+        dataType: T
+      } & (
+        | { dataShape: 'single'; value: ValueTypeMap[T] }
+        | { dataShape: 'list'; value: ValueTypeMap[T][] }
+        | { dataShape: 'range'; value: [ValueTypeMap[T], ValueTypeMap[T]] }
+      )
+    }[ValueDataType]
 
 /** A leaf in the query tree that applies an operator to a field. */
 export type QueryCondition = {
@@ -6,7 +31,7 @@ export type QueryCondition = {
   id: string
   field: string
   operatorId: string
-  value: string
+  value: ConditionValue
 }
 
 /** A group that combines conditions or nested groups. */

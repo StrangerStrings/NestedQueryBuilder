@@ -1,21 +1,29 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useQueryStore } from '../stores/queryStore'
+import type { DatabaseOperator } from '../types/databaseOperator'
 
 const props = defineProps<{
   modelValue: string
+  options: readonly DatabaseOperator[]
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const queryStore = useQueryStore()
-
 // Read the description for the currently selected operator.
 const operatorDescription = computed(() =>
-  queryStore.operators.find((operator) => operator.id === props.modelValue)?.description ?? '',
+  props.options.find((operator) => operator.id === props.modelValue)?.description ?? '',
 )
+
+// Allow all implemented shapes and disable only operators without a supported scalar type.
+function isOperatorDisabled(operator: DatabaseOperator): boolean {
+  const input = operator.valueInput
+  return (
+    input.hasValue &&
+    !input.dataTypes.some((type) => type === 'text' || type === 'number' || type === 'boolean')
+  )
+}
 </script>
 
 <template>
@@ -25,10 +33,15 @@ const operatorDescription = computed(() =>
       <select
         :value="modelValue"
         aria-label="Operator"
-        :disabled="queryStore.operators.length === 0"
+        :disabled="options.length === 0"
         @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       >
-        <option v-for="operator in queryStore.operators" :key="operator.id" :value="operator.id">
+        <option
+          v-for="operator in options"
+          :key="operator.id"
+          :value="operator.id"
+          :disabled="isOperatorDisabled(operator)"
+        >
           {{ operator.id }} ({{ operator.label }})
         </option>
       </select>
@@ -51,8 +64,8 @@ const operatorDescription = computed(() =>
 <style scoped>
 .condition-operator {
   display: grid;
-  gap: 0.35rem;
-  margin-top: 0.75rem;
+  gap: 0.5rem;
+  margin-top: 1rem;
   color: #172033;
   font-size: 0.875rem;
 }

@@ -42,8 +42,10 @@ const emit = defineEmits<{
     />
     <ConditionValueInput
       v-if="selectedOperator"
+      :key="condition.id"
       :model-value="condition.value"
       @update:model-value="queryStore.updateCondition(condition.id, { value: $event })"
+      @type-change="queryStore.changeConditionValueType(condition.id, $event)"
       :operator="selectedOperator"
     />
   </aside>

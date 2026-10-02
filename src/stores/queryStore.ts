@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import type { QueryCondition, QueryGroup } from '../types/query'
+import type { ConditionValue, QueryCondition, QueryGroup } from '../types/query'
+import type { DatabaseOperator, ValueDataType } from '../types/databaseOperator'
 import { databaseDefinitions } from '../databases/databases'
 import {
   assignFieldColours,
@@ -9,10 +10,71 @@ import {
 } from '../colours/fieldColours'
 import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
+import { convertConditionValue } from '../utils/convertConditionValue'
 import { importSqlWhere, type ImportWhereResult } from '../utils/importWhere'
 import { generateWhereSql, type GenerateWhereSqlResult } from '../utils/generateWhereSql'
 
 export type DatabaseId = 'postgresql' | 'elasticsearch'
+
+// Limit value transitions to the scalar types implemented by the shared converter.
+function isSupportedValueType(dataType: ValueDataType): dataType is 'text' | 'number' | 'boolean' {
+  return dataType === 'text' || dataType === 'number' || dataType === 'boolean'
+}
+
+// Resolve all supported shapes from metadata; the shared converter supplies values and defaults.
+function convertOperatorValue(
+  source: ConditionValue,
+  operator: DatabaseOperator,
+  requestedType?: ValueDataType,
+): ConditionValue | undefined {
+  const input = operator.valueInput
+  if (!input.hasValue) {
+    return requestedType === undefined
+      ? convertConditionValue(source, { hasValue: false })
+      : undefined
+  }
+  if (source.hasValue && !isSupportedValueType(source.dataType)) {
+    return
+  }
+
+  const dataType =
+    requestedType ??
+    (source.hasValue && input.dataTypes.includes(source.dataType)
+      ? source.dataType
+      : input.dataTypes.find(isSupportedValueType))
+  if (!dataType || !isSupportedValueType(dataType) || !input.dataTypes.includes(dataType)) return
+
+  const shape = input.dataShape
+  switch (dataType) {
+    case 'text':
+      return convertConditionValue(
+        source,
+        shape === 'single'
+          ? { hasValue: true, dataType, dataShape: shape, value: '' }
+          : shape === 'range'
+            ? { hasValue: true, dataType, dataShape: shape, value: ['', ''] }
+            : { hasValue: true, dataType, dataShape: shape, value: [''] },
+      )
+    case 'number':
+      return convertConditionValue(
+        source,
+        shape === 'single'
+          ? { hasValue: true, dataType, dataShape: shape, value: 0 }
+          : shape === 'range'
+            ? { hasValue: true, dataType, dataShape: shape, value: [0, 0] }
+            : { hasValue: true, dataType, dataShape: shape, value: [0] },
+      )
+    case 'boolean':
+      return convertConditionValue(
+        source,
+        shape === 'single'
+          ? { hasValue: true, dataType, dataShape: shape, value: false }
+          : shape === 'range'
+            ? { hasValue: true, dataType, dataShape: shape, value: [false, false] }
+            : { hasValue: true, dataType, dataShape: shape, value: [false] },
+      )
+  }
+}
 
 // Create a fresh empty query tree for the selected database.
 function createEmptyQuery(): QueryGroup {
@@ -26,48 +88,49 @@ function createEmptyQuery(): QueryGroup {
         id: createId(),
         field: 'status',
         operatorId: '=',
-        value: 'online',
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
       {
         kind: 'condition',
         id: createId(),
         field: 'tatters',
         operatorId: '=',
-        value: 'yes',
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'yes' },
       },
       {
         kind: 'condition',
         id: createId(),
         field: 'age',
         operatorId: '=',
-        value: '35',
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: '35' },
       },
-            {
+      {
         kind: 'condition',
         id: createId(),
         field: 'asdf',
         operatorId: '=',
-        value: 'online',
-      },      {
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
+      },
+      {
         kind: 'condition',
         id: createId(),
         field: 'trew',
         operatorId: '=',
-        value: 'online',
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
-            {
+      {
         kind: 'condition',
         id: createId(),
         field: 'rewwer',
         operatorId: '=',
-        value: 'online',
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
-            {
+      {
         kind: 'condition',
         id: createId(),
         field: 'age',
         operatorId: '=',
-        value: 'online',
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
     ],
   }
@@ -184,13 +247,46 @@ export const useQueryStore = defineStore('query', () => {
     { immediate: true, flush: 'pre' },
   )
 
-  // Update condition details through the store rather than mutating component props.
+  // Convert before applying the operator and value together, leaving unsupported requests unchanged.
+  function changeConditionOperator(conditionId: string, operatorId: string): boolean {
+    const condition = findConditionById(query.value, conditionId)
+    const operator = operators.value.find((candidate) => candidate.id === operatorId)
+    if (!condition || !operator) return false
+
+    const value = convertOperatorValue(condition.value, operator)
+    if (value === undefined) return false
+
+    Object.assign(condition, { operatorId, value })
+    return true
+  }
+
+  // Change an allowed selected type using the current operator's required input shape.
+  function changeConditionValueType(conditionId: string, dataType: ValueDataType) {
+    const condition = findConditionById(query.value, conditionId)
+    if (!condition) return
+
+    const operator = operators.value.find((candidate) => candidate.id === condition.operatorId)
+    if (!operator) return
+
+    const value = convertOperatorValue(condition.value, operator, dataType)
+    if (value !== undefined) condition.value = value
+  }
+
+  // Route operator edits through conversion; its result takes precedence over a simultaneous value edit.
   function updateCondition(
     conditionId: string,
     updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value'>>,
   ) {
     const condition = findConditionById(query.value, conditionId)
-    if (condition) Object.assign(condition, updates)
+    if (!condition) return
+
+    if (updates.operatorId !== undefined) {
+      if (!changeConditionOperator(conditionId, updates.operatorId)) return
+    } else if (updates.value !== undefined) {
+      condition.value = updates.value
+    }
+
+    if (updates.field !== undefined) condition.field = updates.field
   }
 
   // Resolve the condition's saved shade in the family associated with its field.
@@ -227,14 +323,17 @@ export const useQueryStore = defineStore('query', () => {
     }
   }
 
-  // Create a blank-valued condition using the current database and an existing field.
+  // Derive fresh defaults from the selected operator's metadata through the shared converter.
   function createCondition(): QueryCondition {
+    const operator = operators.value[0]
+    const value = operator ? convertOperatorValue({ hasValue: false }, operator) : undefined
+
     return {
       id: createId(),
       kind: 'condition',
       field: uniqueFields.value[0] ?? '',
-      operatorId: operators.value[0]?.id ?? '',
-      value: '',
+      operatorId: value !== undefined && operator ? operator.id : '',
+      value: value ?? { hasValue: false },
     }
   }
 
@@ -276,6 +375,8 @@ export const useQueryStore = defineStore('query', () => {
     importSqlFilter,
     getConditionColour,
     updateCondition,
+    changeConditionOperator,
+    changeConditionValueType,
     uniqueFields,
     changeDatabase,
     cycleGroupMode,
