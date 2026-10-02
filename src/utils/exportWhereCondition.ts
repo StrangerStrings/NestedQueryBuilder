@@ -40,14 +40,14 @@ export function exportWhereCondition(condition: QueryCondition): ExportWhereCond
     }
   }
 
-  if (condition.operatorId === 'postgresql.isNull') {
+  if (condition.operatorId === 'IS NULL') {
     return {
       success: true,
       expression: { type: 'unary', op: 'IS NULL', operand: reference },
     }
   }
 
-  if (condition.operatorId !== 'postgresql.eq' && condition.operatorId !== 'postgresql.gt') {
+  if (condition.operatorId !== '=' && condition.operatorId !== '>') {
     return {
       success: false,
       error: `Unsupported condition operator: ${condition.operatorId}.`,
@@ -59,7 +59,7 @@ export function exportWhereCondition(condition: QueryCondition): ExportWhereCond
     success: true,
     expression: {
       type: 'binary',
-      op: condition.operatorId === 'postgresql.eq' ? '=' : '>',
+      op: condition.operatorId,
       left: reference,
       right: { type: 'string', value: condition.value },
     },

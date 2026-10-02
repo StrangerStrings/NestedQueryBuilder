@@ -132,7 +132,7 @@ watch(filteredOptions, () => {
   display: grid;
   gap: 0.35rem;
   margin-top: 1rem;
-  color: #5b6472;
+  color: #172033;
   font-size: 0.875rem;
 }
 
@@ -161,7 +161,7 @@ input {
   list-style: none;
   border: 1px solid #c5ccd8;
   border-radius: 4px;
-  color: #5b6472;
+  color: #172033;
   font-size: 0.875rem;
 }
 
@@ -174,6 +174,6 @@ input {
 .field-options li:hover,
 .field-options li.highlighted {
   background: #e8eef9;
-  color: #1e3a5f;
+  color: #172033;
 }
 </style>

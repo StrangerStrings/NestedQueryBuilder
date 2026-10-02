@@ -26,7 +26,9 @@ const emit = defineEmits<{
   <aside class="condition-panel" aria-label="Condition details">
     <div class="panel-header">
       <h3>Condition details</h3>
-      <button type="button" @click="emit('close')">Close</button>
+      <button type="button" aria-label="Close condition details" @click="emit('close')">
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
     </div>
     <ConditionFieldInput
       :model-value="condition.field"
@@ -49,7 +51,7 @@ const emit = defineEmits<{
 
 <style scoped>
 .condition-panel {
-  width: 18rem;
+  width: 22rem;
   max-width: 100%;
   box-sizing: border-box;
   padding: 1rem;
@@ -71,11 +73,18 @@ h3 {
 }
 
 button {
-  padding: 0.35rem 0.6rem;
-  border: 1px solid #c5ccd8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border: 0;
   border-radius: 4px;
   background: transparent;
   color: #5b6472;
   cursor: pointer;
+}
+
+button .material-symbols-outlined {
+  font-size: 1.125rem;
 }
 </style>

@@ -25,11 +25,7 @@ export function importWhereCondition(expression: Expr): ImportWhereConditionResu
   }
 
   if (expression.type === 'binary') {
-    if (expression.op === '=') {
-      operatorId = 'postgresql.eq'
-    } else if (expression.op === '>') {
-      operatorId = 'postgresql.gt'
-    } else {
+    if (expression.op !== '=' && expression.op !== '>') {
       return {
         success: false,
         error: createImportWhereError(
@@ -40,6 +36,7 @@ export function importWhereCondition(expression: Expr): ImportWhereConditionResu
       }
     }
 
+    operatorId = expression.op
     field = expression.left
     if (expression.right.type !== 'string') {
       return {
@@ -65,7 +62,7 @@ export function importWhereCondition(expression: Expr): ImportWhereConditionResu
     }
 
     field = expression.operand
-    operatorId = 'postgresql.isNull'
+    operatorId = expression.op
     value = ''
   } else {
     return {

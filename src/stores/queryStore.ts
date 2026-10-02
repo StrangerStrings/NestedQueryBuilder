@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import type { QueryCondition, QueryGroup } from '../types/query'
-import { databaseDefinitions } from '../data/databases'
+import { databaseDefinitions } from '../databases/databases'
 import {
   assignFieldColours,
   assignConditionColours,
@@ -25,48 +25,48 @@ function createEmptyQuery(): QueryGroup {
         kind: 'condition',
         id: createId(),
         field: 'status',
-        operatorId: 'postgresql.eq',
+        operatorId: '=',
         value: 'online',
       },
       {
         kind: 'condition',
         id: createId(),
         field: 'tatters',
-        operatorId: 'postgresql.eq',
+        operatorId: '=',
         value: 'yes',
       },
       {
         kind: 'condition',
         id: createId(),
         field: 'age',
-        operatorId: 'postgresql.eq',
+        operatorId: '=',
         value: '35',
       },
             {
         kind: 'condition',
         id: createId(),
         field: 'asdf',
-        operatorId: 'postgresql.eq',
+        operatorId: '=',
         value: 'online',
       },      {
         kind: 'condition',
         id: createId(),
         field: 'trew',
-        operatorId: 'postgresql.eq',
+        operatorId: '=',
         value: 'online',
       },
             {
         kind: 'condition',
         id: createId(),
         field: 'rewwer',
-        operatorId: 'postgresql.eq',
+        operatorId: '=',
         value: 'online',
       },
             {
         kind: 'condition',
         id: createId(),
         field: 'age',
-        operatorId: 'postgresql.eq',
+        operatorId: '=',
         value: 'online',
       },
     ],
