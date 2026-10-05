@@ -17,15 +17,35 @@ const selectedOperator = computed(() =>
   queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
 )
 
+// Match the condition's visible border, including its incomplete-state colour.
+const borderColour = computed(() =>
+  !props.condition.field.trim() || !selectedOperator.value
+    ? '#9ca3af'
+    : queryStore.getConditionColour(props.condition)?.accent ?? '#94a3b8',
+)
+
+// Use half the condition's background opacity without fading the panel's contents.
+const backgroundColour = computed(() => {
+  const colour =
+    !props.condition.field.trim() || !selectedOperator.value
+      ? '#f3f4f6'
+      : queryStore.getConditionColour(props.condition)?.background ?? '#f8fafc'
+  return `color-mix(in srgb, ${colour} 50%, transparent)`
+})
+
 const emit = defineEmits<{
   close: []
 }>()
 </script>
 
 <template>
-  <aside class="condition-panel" aria-label="Condition details">
+  <aside
+    class="condition-panel"
+    :style="{ borderColor: borderColour, backgroundColor: backgroundColour }"
+    aria-label="Condition details"
+  >
     <div class="panel-header">
-      <h3>Condition details</h3>
+      <h3></h3>
       <button type="button" aria-label="Close condition details" @click="emit('close')">
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
@@ -57,8 +77,8 @@ const emit = defineEmits<{
   max-width: 100%;
   box-sizing: border-box;
   padding: 1rem;
-  border: 1px solid #d9dee7;
-  border-radius: 4px;
+  border: 4px solid #d9dee7;
+  border-radius: 22px;
   background: #fff;
 }
 
@@ -78,9 +98,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.35rem;
   border: 0;
-  border-radius: 4px;
   background: transparent;
   color: #5b6472;
   cursor: pointer;
