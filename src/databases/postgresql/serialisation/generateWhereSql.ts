@@ -1,4 +1,4 @@
-import type { QueryGroup } from '../types/query'
+import type { QueryGroup } from '../../../types/query'
 import { exportWhere } from './exportWhere'
 import { serializeWhereExpression } from './serializeWhereExpression'
 

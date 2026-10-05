@@ -11,8 +11,8 @@ import {
 import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
 import { convertConditionValue } from '../utils/convertConditionValue'
-import { importSqlWhere, type ImportWhereResult } from '../utils/importWhere'
-import { generateWhereSql, type GenerateWhereSqlResult } from '../utils/generateWhereSql'
+import { importSqlWhere, type ImportWhereResult } from '../databases/postgresql/parsing/importWhere'
+import { generateWhereSql, type GenerateWhereSqlResult } from '../databases/postgresql/serialisation/generateWhereSql'
 
 export type DatabaseId = 'postgresql' | 'elasticsearch'
 

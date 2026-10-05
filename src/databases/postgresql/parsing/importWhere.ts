@@ -1,6 +1,6 @@
 import type { Expr } from 'pgsql-ast-parser'
-import type { QueryGroup, QueryNode } from '../types/query'
-import { createId } from './createId'
+import type { QueryGroup, QueryNode } from '../../../types/query'
+import { createId } from '../../../utils/createId'
 import { importWhereCondition } from './importWhereCondition'
 import { createImportWhereError, type ImportWhereError } from './importWhereError'
 import { parseWhere } from './parseWhere'
@@ -11,7 +11,7 @@ export type ImportWhereResult =
 type ImportWhereNodeResult =
   { success: true; node: QueryNode } | { success: false; error: ImportWhereError }
 
-// Recursively convert logical nesting, returning the first leaf error without a partial tree.
+// Flatten matching logical groups and ANY operands of NOT, preserving meaning and atomic errors.
 function importWhereNode(expression: Expr): ImportWhereNodeResult {
   if (expression.type === 'binary' && (expression.op === 'AND' || expression.op === 'OR')) {
     const left = importWhereNode(expression.left)
@@ -20,13 +20,23 @@ function importWhereNode(expression: Expr): ImportWhereNodeResult {
     const right = importWhereNode(expression.right)
     if (!right.success) return right
 
+    const mode = expression.op === 'AND' ? 'all' : 'any'
+    const children: QueryNode[] = []
+    for (const child of [left.node, right.node]) {
+      if (child.kind === 'group' && child.mode === mode) {
+        children.push(...child.children)
+      } else {
+        children.push(child)
+      }
+    }
+
     return {
       success: true,
       node: {
         kind: 'group',
         id: createId(),
-        mode: expression.op === 'AND' ? 'all' : 'any',
-        children: [left.node, right.node],
+        mode,
+        children,
       },
     }
   }
@@ -35,9 +45,14 @@ function importWhereNode(expression: Expr): ImportWhereNodeResult {
     const operand = importWhereNode(expression.operand)
     if (!operand.success) return operand
 
+    const children =
+      operand.node.kind === 'group' && operand.node.mode === 'any'
+        ? operand.node.children
+        : [operand.node]
+
     return {
       success: true,
-      node: { kind: 'group', id: createId(), mode: 'none', children: [operand.node] },
+      node: { kind: 'group', id: createId(), mode: 'none', children },
     }
   }
 

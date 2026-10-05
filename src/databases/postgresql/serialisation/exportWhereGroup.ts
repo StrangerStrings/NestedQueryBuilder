@@ -1,5 +1,5 @@
 import type { Expr } from 'pgsql-ast-parser'
-import type { QueryGroup } from '../types/query'
+import type { QueryGroup } from '../../../types/query'
 import { exportWhereCondition } from './exportWhereCondition'
 
 export type ExportWhereGroupResult =

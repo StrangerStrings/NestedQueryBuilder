@@ -1,4 +1,4 @@
-import type { QueryGroup } from '../types/query'
+import type { QueryGroup } from '../../../types/query'
 import { exportWhereGroup, type ExportWhereGroupResult } from './exportWhereGroup'
 
 export type ExportWhereResult = ExportWhereGroupResult

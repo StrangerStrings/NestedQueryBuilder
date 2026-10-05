@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, useId } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
-import type { ImportWhereError } from '../utils/importWhereError'
+import type { ImportWhereError } from '../databases/postgresql/parsing/importWhereError'
 
 const queryStore = useQueryStore()
 const sqlFilter = ref('')
