@@ -1,4 +1,5 @@
 import type { ConditionValue } from '../types/query'
+import { isValidTemporal, temporalDefaults, type TemporalType } from './temporalValue'
 
 type Scalar = string | number | boolean
 
@@ -28,6 +29,31 @@ function toBoolean(value: Scalar): boolean {
   return trimmed === 'true' || trimmed === '1'
 }
 
+// Preserve valid temporal values and apply only explicit calendar/time conversions.
+function toTemporal(
+  value: Scalar,
+  source: ConditionValue,
+  target: TemporalType,
+  defaults: Record<TemporalType, string>,
+): string {
+  if (typeof value !== 'string' || !source.hasValue) return defaults[target]
+  const sourceType = source.dataType
+  if (sourceType === 'text' || sourceType === target) {
+    return isValidTemporal(value, target) ? value : defaults[target]
+  }
+  if (sourceType !== 'date' && sourceType !== 'time' && sourceType !== 'datetime') {
+    return defaults[target]
+  }
+  if (!isValidTemporal(value, sourceType)) return defaults[target]
+  if (sourceType === 'datetime') {
+    return target === 'date' ? value.slice(0, 10) : value.slice(11)
+  }
+  if (target === 'datetime') {
+    return sourceType === 'date' ? `${value}T00:00:00` : `${defaults.date}T${value}`
+  }
+  return defaults[target]
+}
+
 // Convert items in order and fill missing values with defaults without mutating the source.
 function convertShape<T extends Scalar>(
   source: ConditionValue,
@@ -42,9 +68,12 @@ function convertShape<T extends Scalar>(
     source.hasValue &&
     source.dataType !== 'text' &&
     source.dataType !== 'number' &&
-    source.dataType !== 'boolean'
+    source.dataType !== 'boolean' &&
+    source.dataType !== 'date' &&
+    source.dataType !== 'time' &&
+    source.dataType !== 'datetime'
   ) {
-    throw new Error('Only text, number, and boolean values can be converted.')
+    throw new Error('Duration value conversion is not implemented.')
   }
 
   const items: Scalar[] = source.hasValue
@@ -72,6 +101,11 @@ export function convertConditionValue(
 ): ConditionValue {
   if (!target.hasValue) return { hasValue: false }
 
+  const defaults = temporalDefaults(new Date())
+  const isTemporalSource =
+    source.hasValue &&
+    (source.dataType === 'date' || source.dataType === 'time' || source.dataType === 'datetime')
+
   switch (target.dataType) {
     case 'text':
       return {
@@ -83,15 +117,27 @@ export function convertConditionValue(
       return {
         hasValue: true,
         dataType: 'number',
-        ...convertShape(source, target.dataShape, 0, toNumber),
+        ...convertShape(source, target.dataShape, 0, isTemporalSource ? () => 0 : toNumber),
       }
     case 'boolean':
       return {
         hasValue: true,
         dataType: 'boolean',
-        ...convertShape(source, target.dataShape, false, toBoolean),
+        ...convertShape(source, target.dataShape, false, isTemporalSource ? () => false : toBoolean),
       }
+    case 'date':
+    case 'time':
+    case 'datetime': {
+      const dataType = target.dataType
+      return {
+        hasValue: true,
+        dataType,
+        ...convertShape(source, target.dataShape, defaults[dataType], (value) =>
+          toTemporal(value, source, dataType, defaults),
+        ),
+      }
+    }
     default:
-      throw new Error('Date and time value conversion is not implemented.')
+      throw new Error('Duration value conversion is not implemented.')
   }
 }

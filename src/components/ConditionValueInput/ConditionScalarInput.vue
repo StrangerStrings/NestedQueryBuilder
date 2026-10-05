@@ -2,9 +2,10 @@
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { convertConditionValue } from '../../utils/convertConditionValue'
 import BooleanValueInput from './BooleanValueInput.vue'
+import TemporalValueInput from './TemporalValueInput.vue'
 
 const props = defineProps<{
-  dataType: 'text' | 'number' | 'boolean'
+  dataType: 'text' | 'number' | 'boolean' | 'date' | 'time' | 'datetime'
   modelValue: string | number | boolean
   label: string
   hideLabel?: boolean
@@ -91,6 +92,13 @@ function editText(event: Event) {
       @blur="commitNumber"
       @keydown.enter.prevent="commitNumber"
     />
+    <TemporalValueInput
+      v-else-if="dataType === 'date' || dataType === 'time' || dataType === 'datetime'"
+      :data-type="dataType"
+      :model-value="typeof modelValue === 'string' ? modelValue : ''"
+      :label="label"
+      @update:model-value="emit('update:modelValue', $event)"
+    />
     <BooleanValueInput
       v-else
       :model-value="modelValue === true"
@@ -111,7 +119,7 @@ function editText(event: Event) {
   color: #737a86;
 }
 
-input {
+:deep(input) {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;

@@ -3,22 +3,26 @@ import { computed, nextTick, ref, shallowRef, toRaw, watch } from 'vue'
 import type { ConditionValue } from '../../types/query'
 import { createId } from '../../utils/createId'
 import ConditionScalarInput from './ConditionScalarInput.vue'
+import { temporalDefaults } from '../../utils/temporalValue'
 
 const props = defineProps<{ modelValue: ConditionValue }>()
 const emit = defineEmits<{ 'update:modelValue': [value: ConditionValue] }>()
 
-const defaults = { text: '', number: 0, boolean: false }
+// Capture local defaults once for each new or empty list operation.
+function valueDefaults() {
+  return { text: '', number: 0, boolean: false, ...temporalDefaults(new Date()) }
+}
 const root = ref<HTMLElement>()
 const rows = shallowRef<{ id: string; value: string | number | boolean }[]>([])
 const pendingValues = new WeakSet<object>()
 
-// Restrict this editor to the supported list types without converting incoming values.
+// Accept scalar and temporal lists without converting incoming values.
 const listValue = computed(() => {
   const value = props.modelValue
   if (
     value.hasValue &&
     value.dataShape === 'list' &&
-    (value.dataType === 'text' || value.dataType === 'number' || value.dataType === 'boolean')
+    value.dataType !== 'duration'
   )
     return value
   return undefined
@@ -35,7 +39,7 @@ function syncRows() {
     return
   }
 
-  const values = current.value.length ? current.value : [defaults[current.dataType]]
+  const values = current.value.length ? current.value : [valueDefaults()[current.dataType]]
   rows.value = values.map((value) => ({ id: createId(), value }))
 }
 
@@ -48,7 +52,11 @@ function publishRows() {
 
   const values = rows.value.map((row) => row.value)
   let value: ConditionValue
-  if (current.dataType === 'text' && values.every((item) => typeof item === 'string')) {
+  if (
+    (current.dataType === 'text' || current.dataType === 'date' ||
+      current.dataType === 'time' || current.dataType === 'datetime') &&
+    values.every((item) => typeof item === 'string')
+  ) {
     value = { ...current, value: values }
   } else if (current.dataType === 'number' && values.every((item) => typeof item === 'number')) {
     value = { ...current, value: values }
@@ -83,7 +91,7 @@ async function focusRow(id: string) {
 function addRow() {
   const current = listValue.value
   if (!current) return
-  const row = { id: createId(), value: defaults[current.dataType] }
+  const row = { id: createId(), value: valueDefaults()[current.dataType] }
   rows.value = [...rows.value, row]
   publishRows()
   void focusRow(row.id)

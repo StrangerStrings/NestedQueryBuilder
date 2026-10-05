@@ -134,7 +134,6 @@ watch(filteredOptions, () => {
 .field-input {
   display: grid;
   gap: 0.5rem;
-  margin-top: 1rem;
   color: #172033;
   font-size: 0.875rem;
 }

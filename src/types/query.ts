@@ -5,8 +5,11 @@ type ValueTypeMap = {
   text: string
   number: number
   boolean: boolean
+  /** Local calendar date in YYYY-MM-DD format. */
   date: string
+  /** Local time in HH:mm:ss format, with seconds precision. */
   time: string
+  /** Local datetime in YYYY-MM-DDTHH:mm:ss format, without a timezone. */
   datetime: string
   duration: string
 }

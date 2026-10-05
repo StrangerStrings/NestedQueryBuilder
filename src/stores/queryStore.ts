@@ -17,8 +17,17 @@ import { generateWhereSql, type GenerateWhereSqlResult } from '../utils/generate
 export type DatabaseId = 'postgresql' | 'elasticsearch'
 
 // Limit value transitions to the scalar types implemented by the shared converter.
-function isSupportedValueType(dataType: ValueDataType): dataType is 'text' | 'number' | 'boolean' {
-  return dataType === 'text' || dataType === 'number' || dataType === 'boolean'
+function isSupportedValueType(
+  dataType: ValueDataType,
+): dataType is 'text' | 'number' | 'boolean' | 'date' | 'time' | 'datetime' {
+  return (
+    dataType === 'text' ||
+    dataType === 'number' ||
+    dataType === 'boolean' ||
+    dataType === 'date' ||
+    dataType === 'time' ||
+    dataType === 'datetime'
+  )
 }
 
 // Resolve all supported shapes from metadata; the shared converter supplies values and defaults.
@@ -47,6 +56,9 @@ function convertOperatorValue(
   const shape = input.dataShape
   switch (dataType) {
     case 'text':
+    case 'date':
+    case 'time':
+    case 'datetime':
       return convertConditionValue(
         source,
         shape === 'single'
