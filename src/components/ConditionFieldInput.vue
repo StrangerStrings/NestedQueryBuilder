@@ -217,7 +217,7 @@ watch(filteredOptions, () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: #e8eef9;
   color: #172033;
   font: inherit;
   cursor: pointer;
@@ -232,7 +232,7 @@ watch(filteredOptions, () => {
 }
 
 .field-modifier-toggle.has-modifier {
-  background: #e8eef9;
+  background: #fff;
 }
 
 .field-modifier-toggle:focus-visible {

@@ -57,6 +57,8 @@ export type ConditionField = {
 export type QueryCondition = {
   kind: 'condition'
   id: string
+  /** When present, this SQL expression takes precedence over the structured editor fields. */
+  rawSql?: string
   field: ConditionField
   operatorId: string
   value: ConditionValue

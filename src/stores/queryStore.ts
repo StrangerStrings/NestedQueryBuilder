@@ -12,6 +12,8 @@ import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
 import { convertConditionValue } from '../utils/convertConditionValue'
 import { importSqlWhere, type ImportWhereResult } from '../databases/postgresql/parsing/importWhere'
+import { parseWhere } from '../databases/postgresql/parsing/parseWhere'
+import { importWhereCondition } from '../databases/postgresql/parsing/importWhereCondition'
 import { generateWhereSql, type GenerateWhereSqlResult } from '../databases/postgresql/serialisation/generateWhereSql'
 
 export type DatabaseId = 'postgresql' | 'elasticsearch'
@@ -282,13 +284,18 @@ export const useQueryStore = defineStore('query', () => {
     if (value !== undefined) condition.value = value
   }
 
-  // Route operator edits through conversion; its result takes precedence over a simultaneous value edit.
+  // Apply raw text directly, or route structured operator edits through value conversion.
   function updateCondition(
     conditionId: string,
-    updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value'>>,
+    updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value' | 'rawSql'>>,
   ) {
     const condition = findConditionById(query.value, conditionId)
     if (!condition) return
+
+    if (updates.rawSql !== undefined) {
+      if (database.value === 'postgresql') condition.rawSql = updates.rawSql
+      return
+    }
 
     if (updates.operatorId !== undefined) {
       if (!changeConditionOperator(conditionId, updates.operatorId)) return
@@ -381,8 +388,25 @@ export const useQueryStore = defineStore('query', () => {
     }
   }
 
+  // Convert supported raw SQL atomically, leaving the current expression intact on failure.
+  function editRawCondition(conditionId: string): string | null {
+    const condition = findConditionById(query.value, conditionId)
+    if (!condition) return 'Condition no longer exists.'
+    if (condition.rawSql === undefined) return null
+    const parsed = parseWhere(condition.rawSql)
+    if (!parsed.success) return parsed.error
+    if (!parsed.expression) return 'A condition expression is required.'
+    const result = importWhereCondition(parsed.expression)
+    if (!result.success) return `This expression requires Raw mode. ${result.error.message}`
+    const { field, operatorId, value } = result.condition
+    Object.assign(condition, { field, operatorId, value })
+    delete condition.rawSql
+    return null
+  }
+
   return {
     database,
+    editRawCondition,
     query,
     operators,
     whereSqlResult,

@@ -1,3 +1,9 @@
+/** Dedicated purple styling shared by raw condition cards and their editor panel. */
+export const rawConditionColour = {
+  background: '#f3e8ff',
+  accent: '#c084fc',
+} as const
+
 /** Base hues for the ten Soft Pastel colour families. */
 export const conditionColourFamilies = [
   { id: 'coral', name: 'Coral', hue: 25 },

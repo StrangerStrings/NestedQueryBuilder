@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
+import { parseWhere } from '../databases/postgresql/parsing/parseWhere'
+import { rawConditionColour } from '../colours/palette'
 
 const props = defineProps<{
   condition: QueryCondition
@@ -39,9 +41,11 @@ const valueLabel = computed(() => {
   return typeof value.value === 'string' ? JSON.stringify(value.value) : value.value
 })
 
-// Apply this condition's saved shade within its field's shared colour family.
+// Use dedicated purple styling for raw expressions and saved field shades for editor conditions.
 const colourStyle = computed(() => {
-  const colour = queryStore.getConditionColour(props.condition)
+  const colour = props.condition.rawSql !== undefined
+    ? rawConditionColour
+    : queryStore.getConditionColour(props.condition)
   return colour
     ? {
         '--condition-background': colour.background,
@@ -50,8 +54,12 @@ const colourStyle = computed(() => {
     : undefined
 })
 
-// Mark missing field references as incomplete while allowing empty text literals.
+// Flag invalid raw syntax and incomplete structured conditions as their contents change.
 const isInvalid = computed(() => {
+  if (props.condition.rawSql !== undefined) {
+    const parsed = parseWhere(props.condition.rawSql)
+    return !parsed.success || !parsed.expression
+  }
   const value = props.condition.value
   return !props.condition.field.name.trim() || !operator.value || (
     value.hasValue && value.dataType === 'field' && value.dataShape === 'single' && !value.value.trim()
@@ -66,16 +74,21 @@ const emit = defineEmits<{
 <template>
   <div
     class="query-condition"
-    :class="{ 'is-selected': selected, 'is-invalid': isInvalid, 'is-editable': editable }"
+    :class="{ 'is-selected': selected, 'is-invalid': isInvalid, 'is-editable': editable, 'is-raw': condition.rawSql !== undefined }"
     :style="colourStyle"
     @click="editable && emit('select', condition)"
   >
     <button type="button" class="condition-content" :disabled="!editable">
-      <span class="condition-field">{{ fieldLabel }}</span>
-      <span class="condition-operator">{{ operatorLabel }}</span>
-      <span v-if="condition.value.hasValue" class="condition-value">
-        {{ valueLabel }}
+      <span v-if="condition.rawSql !== undefined" aria-label="Raw SQL condition">
+        {{ condition.rawSql || 'Enter a condition' }}
       </span>
+      <template v-else>
+        <span class="condition-field">{{ fieldLabel }}</span>
+        <span class="condition-operator">{{ operatorLabel }}</span>
+        <span v-if="condition.value.hasValue" class="condition-value">
+          {{ valueLabel }}
+        </span>
+      </template>
     </button>
     <span
       v-if="isInvalid"
@@ -138,13 +151,13 @@ const emit = defineEmits<{
   right: 0;
 }
 
-.query-condition.is-invalid {
+.query-condition.is-invalid:not(.is-raw) {
   background: #f3f4f6;
   border-color: #9ca3af;
 }
 
-.query-condition.is-invalid.is-selected::before,
-.query-condition.is-invalid.is-selected::after {
+.query-condition.is-invalid:not(.is-raw).is-selected::before,
+.query-condition.is-invalid:not(.is-raw).is-selected::after {
   background: #9ca3af;
 }
 

@@ -6,6 +6,7 @@ import {
 } from '../conditionHandling'
 import { exportConditionLiteral } from '../conditionLiteral'
 import { postgresqlOperators } from '../operators'
+import { parseWhere } from '../parsing/parseWhere'
 
 export type ExportWhereConditionResult =
   { success: true; expression: Expr } | { success: false; error: string; nodeId: string }
@@ -27,8 +28,20 @@ const supportedFieldModifiers: readonly FieldModifier[] = [
   'sqrt',
 ]
 
-// Validate fields, optional modifiers, and values before metadata-driven AST construction.
+// Parse raw SQL without editor restrictions, or validate and export structured fields and values.
 export function exportWhereCondition(condition: QueryCondition): ExportWhereConditionResult {
+  if (condition.rawSql !== undefined) {
+    const parsed = parseWhere(condition.rawSql)
+    if (!parsed.success || !parsed.expression) {
+      return {
+        success: false,
+        error: parsed.success ? 'A condition expression is required.' : parsed.error,
+        nodeId: condition.id,
+      }
+    }
+    return { success: true, expression: parsed.expression }
+  }
+
   const field = condition.field.name.trim()
   if (!field) {
     return {

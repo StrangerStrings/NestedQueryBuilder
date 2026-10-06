@@ -334,7 +334,7 @@ button {
   padding: 0.45rem;
   border: 0;
   border-radius: 4px;
-  background: #fff;
+  background: #e8eef9;
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -347,7 +347,7 @@ button:hover {
 button[aria-pressed='true'],
 button.temporal-selected,
 button[aria-checked='true'] {
-  background: #e8eef9;
+  background: #fff;
 }
 
 button:focus-visible {

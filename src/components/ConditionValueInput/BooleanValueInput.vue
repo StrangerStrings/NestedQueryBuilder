@@ -26,7 +26,7 @@ button {
   flex: 1;
   padding: 0.45rem;
   border: 1px solid #c5ccd8;
-  background: #fff;
+  background: #e8eef9;
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -46,7 +46,7 @@ button:hover {
 }
 
 button[aria-pressed='true'] {
-  background: #e8eef9;
+  background: #fff;
   font-weight: 600;
 }
 
