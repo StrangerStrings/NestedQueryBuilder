@@ -11,13 +11,9 @@ import {
 import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
 import { convertConditionValue } from '../utils/convertConditionValue'
-import { importSqlWhere, type ImportWhereResult } from '../databases/postgresql/parsing/importWhere'
-import { parseWhere } from '../databases/postgresql/parsing/parseWhere'
-import { importSchema, type ImportSchemaResult } from '../databases/postgresql/schema/importSchema'
-import { importWhereCondition } from '../databases/postgresql/parsing/importWhereCondition'
-import { generateWhereSql, type GenerateWhereSqlResult } from '../databases/postgresql/serialisation/generateWhereSql'
-
-export type DatabaseId = 'postgresql' | 'elasticsearch'
+import type { DatabaseAdapter, FilterImportResult, SchemaImportResult, SqlResult } from '../types/databaseAdapter'
+import type { DatabaseId } from '../databases/databases'
+export type { DatabaseId } from '../databases/databases'
 
 // Allow the literal and field types implemented by the shared converter.
 function isSupportedValueType(
@@ -47,7 +43,7 @@ function convertOperatorValue(
       : undefined
   }
   if (source.hasValue && !isSupportedValueType(source.dataType)) {
-    return
+    source = { hasValue: false }
   }
 
   const dataType =
@@ -93,8 +89,8 @@ function convertOperatorValue(
   }
 }
 
-// Create a fresh empty query tree for the selected database.
-function createEmptyQuery(): QueryGroup {
+// Preserve the existing startup example for the default database.
+function createInitialQuery(): QueryGroup {
   return {
     kind: 'group',
     id: createId(),
@@ -151,6 +147,11 @@ function createEmptyQuery(): QueryGroup {
       },
     ],
   }
+}
+
+// Start a database switch with an empty shared root and fresh identity.
+function createEmptyQuery(): QueryGroup {
+  return { kind: 'group', id: createId(), mode: 'all', children: [] }
 }
 
 function findGroupById(group: QueryGroup, groupId: string): QueryGroup | undefined {
@@ -213,22 +214,28 @@ function getConditions(group: QueryGroup): QueryCondition[] {
 export const useQueryStore = defineStore('query', () => {
   const database = ref<DatabaseId>('postgresql')
   const schemaFields = ref<string[]>([])
-  const query = ref<QueryGroup>(createEmptyQuery())
-  const operators = computed(() => databaseDefinitions[database.value].operators)
+  const query = ref<QueryGroup>(createInitialQuery())
+  // Resolve capabilities and SQL operations from the active database adapter.
+  const adapter = computed<DatabaseAdapter>(() => databaseDefinitions[database.value])
+  const operators = computed(() => adapter.value.operators)
 
   // Preserve the previous schema suggestions unless the entire import succeeds.
-  function importSchemaSql(sql: string): ImportSchemaResult {
-    const result = importSchema(sql)
+  function importSchemaSql(sql: string): SchemaImportResult {
+    const importer = adapter.value.importSchemaSql
+    if (!importer) return { success: false, error: `${adapter.value.label} schema import is not supported.` }
+    const result = importer(sql)
     if (result.success) schemaFields.value = result.fields
     return result
   }
 
   // Regenerate SQL whenever the current query tree's fields, values, or structure change.
-  const whereSqlResult = computed<GenerateWhereSqlResult>(() => generateWhereSql(query.value))
+  const whereSqlResult = computed<SqlResult>(() => adapter.value.generateWhereSql(query.value))
 
   // Replace the tree on successful import; the existing watcher assigns imported condition colours.
-  function importSqlFilter(filter: string): ImportWhereResult {
-    const result = importSqlWhere(filter)
+  function importSqlFilter(filter: string): FilterImportResult {
+    const importer = adapter.value.importSqlFilter
+    if (!importer) return { success: false, error: { kind: 'unsupported-expression', message: `${adapter.value.label} SQL filter import is not supported.` } }
+    const result = importer(filter)
     if (result.success) {
       query.value = result.tree
     }
@@ -293,7 +300,7 @@ export const useQueryStore = defineStore('query', () => {
     if (value !== undefined) condition.value = value
   }
 
-  // Apply raw text directly, or route structured operator edits through value conversion.
+  // Enforce adapter capabilities before applying fields, raw text, or operator/value edits.
   function updateCondition(
     conditionId: string,
     updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value' | 'rawSql'>>,
@@ -302,9 +309,11 @@ export const useQueryStore = defineStore('query', () => {
     if (!condition) return
 
     if (updates.rawSql !== undefined) {
-      if (database.value === 'postgresql') condition.rawSql = updates.rawSql
+      if (adapter.value.parseRawCondition) condition.rawSql = updates.rawSql
       return
     }
+
+    if (updates.field?.modifier != null && !adapter.value.fieldModifiers?.includes(updates.field.modifier)) return
 
     if (updates.operatorId !== undefined) {
       if (!changeConditionOperator(conditionId, updates.operatorId)) return
@@ -333,11 +342,12 @@ export const useQueryStore = defineStore('query', () => {
     return [...fields]
   })
 
-  // Switch databases and reset the query tree when the selection changes.
+  // Clear query and schema state only when changing to a different supported database.
   function changeDatabase(next: DatabaseId) {
-    if (next === database.value) return
+    if (next === database.value || !(next in databaseDefinitions)) return
 
     database.value = next
+    schemaFields.value = []
     query.value = createEmptyQuery()
   }
 
@@ -402,11 +412,10 @@ export const useQueryStore = defineStore('query', () => {
     const condition = findConditionById(query.value, conditionId)
     if (!condition) return 'Condition no longer exists.'
     if (condition.rawSql === undefined) return null
-    const parsed = parseWhere(condition.rawSql)
-    if (!parsed.success) return parsed.error
-    if (!parsed.expression) return 'A condition expression is required.'
-    const result = importWhereCondition(parsed.expression)
-    if (!result.success) return `This expression requires Raw mode. ${result.error.message}`
+    const parser = adapter.value.parseRawCondition
+    if (!parser) return `${adapter.value.label} raw SQL editing is not supported.`
+    const result = parser(condition.rawSql)
+    if (!result.success) return result.error
     const { field, operatorId, value } = result.condition
     Object.assign(condition, { field, operatorId, value })
     delete condition.rawSql
@@ -415,6 +424,7 @@ export const useQueryStore = defineStore('query', () => {
 
   return {
     database,
+    adapter,
     schemaFields,
     importSchemaSql,
     editRawCondition,

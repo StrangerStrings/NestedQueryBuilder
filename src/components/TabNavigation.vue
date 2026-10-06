@@ -1,17 +1,31 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useQueryStore } from '../stores/queryStore'
+
+const queryStore = useQueryStore()
 const tabGroups = [
   { position: 'left', tabs: [{ id: 'databases', label: 'Databases' }] },
   {
     position: 'center',
     tabs: [
       { id: 'schema', label: 'Schema' },
-      { id: 'input', label: 'Input' },
+      { id: 'import', label: 'Import' },
       { id: 'builder', label: 'Builder' },
       { id: 'output', label: 'Output' },
     ],
   },
   { position: 'right', tabs: [{ id: 'settings', label: 'Settings' }] },
 ] as const
+
+// Hide unavailable import views while retaining the existing placeholder database navigation.
+const visibleTabGroups = computed(() => tabGroups.map((group) => ({
+  ...group,
+  tabs: group.tabs.filter((tab) =>
+    queryStore.adapter.placeholder ||
+    (tab.id !== 'import' || !!queryStore.adapter.importSqlFilter) &&
+    (tab.id !== 'schema' || !!queryStore.adapter.importSchemaSql),
+  ),
+})))
 
 type Tab = (typeof tabGroups)[number]['tabs'][number]['id']
 
@@ -27,7 +41,7 @@ const emit = defineEmits<{
 <template>
   <nav class="tab-navigation" aria-label="Query views">
     <div
-      v-for="group in tabGroups"
+      v-for="group in visibleTabGroups"
       :key="group.position"
       class="tab-group"
       :class="group.position"

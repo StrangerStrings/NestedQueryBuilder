@@ -6,8 +6,6 @@ import ConditionValueInput from './ConditionValueInput/ConditionValueInput.vue'
 import QueryDisplay from './QueryDisplay.vue'
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
-import { exportWhereCondition } from '../databases/postgresql/serialisation/exportWhereCondition'
-import { serializeWhereExpression } from '../databases/postgresql/serialisation/serializeWhereExpression'
 import { rawConditionColour } from '../colours/palette'
 
 const queryStore = useQueryStore()
@@ -28,9 +26,8 @@ const selectedOperator = computed(() =>
 
 // Render only the selected condition with the same validation and SQL formatting as the query preview.
 const conditionSql = computed(() => {
-  if (queryStore.database !== 'postgresql') return null
-  const exported = exportWhereCondition(props.condition)
-  return exported.success ? serializeWhereExpression(exported.expression) : exported
+  if (!queryStore.adapter.sql) return null
+  return queryStore.adapter.generateConditionSql(props.condition)
 })
 
 // Display validation for the current raw condition.
@@ -57,7 +54,7 @@ watch(
 
 // Initialise the raw condition directly from its current generated SQL.
 function openRawEditor() {
-  if (editingMode.value === 'raw') return
+  if (!queryStore.adapter.parseRawCondition || editingMode.value === 'raw') return
   const sql = conditionSql.value
   queryStore.updateCondition(props.condition.id, { rawSql: sql?.success ? sql.sql : '' })
   editorError.value = null
@@ -65,6 +62,7 @@ function openRawEditor() {
 
 // Write each keystroke directly to the condition, including incomplete or invalid SQL.
 function updateRawInput(event: Event) {
+  if (!queryStore.adapter.parseRawCondition) return
   queryStore.updateCondition(props.condition.id, {
     rawSql: (event.target as HTMLTextAreaElement).value,
   })
@@ -73,7 +71,7 @@ function updateRawInput(event: Event) {
 
 // Switch to the visual editor when the current raw expression can be represented there.
 function openVisualEditor() {
-  if (editingMode.value === 'editor') return
+  if (!queryStore.adapter.parseRawCondition || editingMode.value === 'editor') return
   editorError.value = queryStore.editRawCondition(props.condition.id)
 }
 
@@ -118,9 +116,9 @@ const emit = defineEmits<{
           Editor
         </button>
         <button
+          v-if="queryStore.adapter.parseRawCondition"
           type="button"
           :aria-pressed="editingMode === 'raw'"
-          :disabled="queryStore.database !== 'postgresql'"
           @click="openRawEditor"
         >
           Raw
@@ -135,7 +133,7 @@ const emit = defineEmits<{
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
     </div>
-    <div v-if="editingMode === 'raw'" class="raw-condition-input">
+    <div v-if="queryStore.adapter.parseRawCondition && editingMode === 'raw'" class="raw-condition-input">
       <label :for="rawConditionId">Raw condition</label>
       <textarea
         :id="rawConditionId"
@@ -145,14 +143,16 @@ const emit = defineEmits<{
         placeholder="status = 'online'"
         :spellcheck="false"
         :aria-invalid="!!rawError"
-        :aria-describedby="previewError ? `${rawConditionId}-error` : undefined"
+        :aria-describedby="[queryStore.adapter.sql?.importHelpText ? `${rawConditionId}-help` : null, previewError ? `${rawConditionId}-error` : null].filter(Boolean).join(' ') || undefined"
       />
+      <p v-if="queryStore.adapter.sql?.importHelpText" :id="`${rawConditionId}-help`">{{ queryStore.adapter.sql.importHelpText }}</p>
     </div>
     <template v-else>
       <ConditionFieldInput
         :key="condition.id"
         :model-value="condition.field"
         :options="queryStore.uniqueFields"
+        :modifiers="queryStore.adapter.fieldModifiers"
         @update:model-value="queryStore.updateCondition(condition.id, { field: $event })"
       />
       <ConditionOperatorInput
@@ -171,14 +171,14 @@ const emit = defineEmits<{
       />
     </template>
     <section v-if="conditionSql" class="condition-preview" aria-label="Condition SQL preview">
-      <h4>Generated {{ queryStore.database }}</h4>
+      <h4>Generated {{ queryStore.adapter.label }}</h4>
       <div aria-live="polite" aria-atomic="true">
         <QueryDisplay
           v-if="conditionSql.success || condition.rawSql !== undefined"
           class="condition-sql"
           :query-text="conditionSql.success ? conditionSql.sql : condition.rawSql ?? ''"
-          language="sql"
-          accessible-label="Generated PostgreSQL condition"
+          :language="queryStore.adapter.sql?.highlightLanguage ?? 'sql'"
+          :accessible-label="`Generated ${queryStore.adapter.label} condition`"
         />
         <details
           v-if="previewError"
@@ -187,7 +187,7 @@ const emit = defineEmits<{
           class="condition-error"
           :open="previewError.length <= 100"
         >
-          <summary>Syntax Error</summary>
+          <summary>{{ condition.rawSql !== undefined ? 'Syntax Error' : 'Generation Error' }}</summary>
           <p>{{ previewError }}</p>
         </details>
       </div>

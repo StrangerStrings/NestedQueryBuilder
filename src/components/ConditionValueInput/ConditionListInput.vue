@@ -3,27 +3,27 @@ import { computed, nextTick, ref, shallowRef, toRaw, watch } from 'vue'
 import type { ConditionValue } from '../../types/query'
 import { createId } from '../../utils/createId'
 import ConditionScalarInput from './ConditionScalarInput.vue'
+import ConditionFieldInput from '../ConditionFieldInput.vue'
 import { temporalDefaults } from '../../utils/temporalValue'
 
-const props = defineProps<{ modelValue: ConditionValue }>()
+const props = defineProps<{ modelValue: ConditionValue; fieldOptions?: string[] }>()
 const emit = defineEmits<{ 'update:modelValue': [value: ConditionValue] }>()
 
 // Capture local defaults once for each new or empty list operation.
 function valueDefaults() {
-  return { text: '', number: 0, boolean: false, ...temporalDefaults(new Date()) }
+  return { field: '', text: '', number: 0, boolean: false, ...temporalDefaults(new Date()) }
 }
 const root = ref<HTMLElement>()
 const rows = shallowRef<{ id: string; value: string | number | boolean }[]>([])
 const pendingValues = new WeakSet<object>()
 
-// Accept literal lists without converting values; field references currently use single inputs.
+// Accept literal and field-reference lists without converting their values.
 const listValue = computed(() => {
   const value = props.modelValue
   if (
     value.hasValue &&
     value.dataShape === 'list' &&
-    value.dataType !== 'duration' &&
-    value.dataType !== 'field'
+    value.dataType !== 'duration'
   )
     return value
   return undefined
@@ -46,7 +46,7 @@ function syncRows() {
 
 watch(() => props.modelValue, syncRows, { immediate: true, deep: true })
 
-// Publish plain typed arrays, keeping row identities exclusively inside the editor.
+// Publish typed literal or field arrays, keeping row identities exclusively inside the editor.
 function publishRows() {
   const current = listValue.value
   if (!current || !rows.value.length) return
@@ -54,7 +54,7 @@ function publishRows() {
   const values = rows.value.map((row) => row.value)
   let value: ConditionValue
   if (
-    (current.dataType === 'text' || current.dataType === 'date' ||
+    (current.dataType === 'field' || current.dataType === 'text' || current.dataType === 'date' ||
       current.dataType === 'time' || current.dataType === 'datetime') &&
     values.every((item) => typeof item === 'string')
   ) {
@@ -113,7 +113,16 @@ function removeRow(id: string) {
 <template>
   <div v-if="listValue" ref="root" class="condition-list-input">
     <div v-for="(row, index) in rows" :key="row.id" :data-row-id="row.id" class="list-row">
+      <ConditionFieldInput
+        v-if="listValue.dataType === 'field'"
+        :model-value="{ name: String(row.value), modifier: null }"
+        :options="fieldOptions ?? []"
+        :label="`Field value ${index + 1}`"
+        hide-modifiers
+        @update:model-value="editRow(row.id, $event.name)"
+      />
       <ConditionScalarInput
+        v-else
         :data-type="listValue.dataType"
         :model-value="row.value"
         :label="`Value ${index + 1}`"

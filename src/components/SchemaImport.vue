@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
 
 const queryStore = useQueryStore()
@@ -7,8 +7,16 @@ const schemaSql = ref('')
 const schemaError = ref('')
 const schemaSuccess = ref('')
 
+// Clear the previous target's schema draft and feedback before another import can occur.
+watch(() => queryStore.database, () => {
+  schemaSql.value = ''
+  schemaError.value = ''
+  schemaSuccess.value = ''
+}, { flush: 'sync' })
+
 // Report the import outcome while the store replaces suggestions only on success.
 function importSchema() {
+  if (!queryStore.adapter.importSchemaSql) return
   const result = queryStore.importSchemaSql(schemaSql.value)
   schemaError.value = result.success ? '' : result.error
   schemaSuccess.value = result.success
@@ -19,22 +27,26 @@ function importSchema() {
 
 <template>
   <section aria-label="Schema">
-    <p id="schema-help">
-      Paste PostgreSQL CREATE TABLE statements to add column names to field autocomplete. (Types
+    <p v-if="queryStore.adapter.importSchemaSql" id="schema-help">
+      Paste {{ queryStore.adapter.label }} CREATE TABLE statements to add column names to field autocomplete. (Types
       and constraints are ignored.)
     </p>
-    <form class="schema-form" @submit.prevent="importSchema">
+    <p v-if="queryStore.adapter.sql?.schemaHelpText" id="schema-dialect-help">{{ queryStore.adapter.sql.schemaHelpText }}</p>
+    <form v-if="queryStore.adapter.importSchemaSql" class="schema-form" @submit.prevent="importSchema">
       <textarea
         id="schema-sql"
+        aria-label="CREATE TABLE schema to import"
         v-model="schemaSql"
         rows="12"
+        :placeholder="queryStore.adapter.sql?.schemaExample"
         :aria-invalid="!!schemaError"
-        :aria-describedby="schemaError ? 'schema-help schema-error' : 'schema-help'"
+        :aria-describedby="['schema-help', queryStore.adapter.sql?.schemaHelpText ? 'schema-dialect-help' : null, schemaError ? 'schema-error' : null].filter(Boolean).join(' ')"
       ></textarea>
       <button type="submit" :disabled="!schemaSql.trim()">Import Schema</button>
       <p v-if="schemaError" id="schema-error" role="alert">{{ schemaError }}</p>
       <p role="status" aria-live="polite">{{ schemaSuccess }}</p>
     </form>
+    <p v-else>{{ queryStore.adapter.label }} CREATE TABLE schema import is not supported.</p>
   </section>
 </template>
 

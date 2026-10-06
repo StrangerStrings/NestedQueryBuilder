@@ -8,43 +8,50 @@ const queryStore = useQueryStore()
 const copyStatusId = `${useId()}-copy-status`
 const copyStatus = ref<'success' | 'error' | ''>('')
 const copying = ref(false)
+let previewRevision = 0
 
-// Format the preview as PostgreSQL, preserving the original SQL if formatting fails.
+// Format SQL in the active dialect, preserving the original SQL if formatting fails.
 const formattedSql = computed(() => {
   const result = queryStore.whereSqlResult
   if (!result.success || !result.sql) return ''
 
   try {
-    return format(result.sql, { language: 'postgresql' })
+    return format(result.sql, { language: queryStore.adapter.sql?.formatterDialect ?? 'sql' })
   } catch {
     return result.sql
   }
 })
 
-// Clear copy feedback when the displayed query or database changes.
+// Invalidate pending copy feedback whenever query state or the selected database changes.
 watch(
-  // Observe the displayed SQL and active database together.
-  () => [formattedSql.value, queryStore.database] as const,
+  // Observe edits even if the formatted SQL happens to stay the same.
+  () => [queryStore.query, queryStore.database] as const,
   // Reset feedback so it always refers to the current preview.
   () => {
+    previewRevision += 1
     copyStatus.value = ''
   },
+  { deep: true, flush: 'sync' },
 )
 
 // Copy the displayed SQL and report clipboard failures without changing the query.
 async function copySql() {
+  const revision = previewRevision
+  const database = queryStore.database
   const sql = formattedSql.value
-  if (copying.value || !sql || !queryStore.whereSqlResult.success) return
+  if (copying.value || !queryStore.adapter.sql || !sql || !queryStore.whereSqlResult.success) return
 
   copying.value = true
   copyStatus.value = ''
   try {
     await navigator.clipboard.writeText(sql)
-    if (formattedSql.value === sql && queryStore.database === 'postgresql') {
+    if (revision === previewRevision && queryStore.whereSqlResult.success &&
+        formattedSql.value === sql && queryStore.database === database) {
       copyStatus.value = 'success'
     }
   } catch {
-    if (formattedSql.value === sql && queryStore.database === 'postgresql') {
+    if (revision === previewRevision && queryStore.whereSqlResult.success &&
+        formattedSql.value === sql && queryStore.database === database) {
       copyStatus.value = 'error'
     }
   } finally {
@@ -55,23 +62,23 @@ async function copySql() {
 
 <template>
   <section aria-label="Query output">
-    <div v-if="queryStore.database === 'postgresql'" class="sql-preview">
+    <div v-if="queryStore.adapter.sql" class="sql-preview">
       <div class="sql-preview-header">
-        <span>Generated SQL</span>
+        <span>Generated {{ queryStore.adapter.label }}</span>
       </div>
       <QueryDisplay
         v-if="queryStore.whereSqlResult.success"
         class="sql-output"
         :query-text="formattedSql"
-        language="sql"
-        accessible-label="Generated PostgreSQL SQL"
+        :language="queryStore.adapter.sql.highlightLanguage"
+        :accessible-label="`Generated ${queryStore.adapter.label} SQL`"
       />
       <p v-else class="generation-error" role="alert">
         {{ queryStore.whereSqlResult.error }}
       </p>
       <button
         type="button"
-        aria-label="Copy formatted PostgreSQL SQL"
+        :aria-label="`Copy formatted ${queryStore.adapter.label} SQL`"
         :aria-describedby="copyStatusId"
         :disabled="copying || !queryStore.whereSqlResult.success || !formattedSql"
         @click="copySql"

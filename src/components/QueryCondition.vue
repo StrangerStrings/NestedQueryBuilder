@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import type { QueryCondition } from '../types/query'
-import { parseWhere } from '../databases/postgresql/parsing/parseWhere'
 import { rawConditionColour } from '../colours/palette'
 
 const props = defineProps<{
@@ -60,12 +59,18 @@ const colourStyle = computed(() => {
     : undefined
 })
 
-// Flag invalid raw syntax and incomplete structured conditions as their contents change.
+// Validate each condition through the selected dialect and retain node-specific generation feedback.
+const generationError = computed(() => {
+  if (!queryStore.adapter.sql) return null
+  const result = queryStore.whereSqlResult
+  if (!result.success && result.nodeId === props.condition.id) return result.error
+  const conditionResult = queryStore.adapter.generateConditionSql(props.condition)
+  return conditionResult.success ? null : conditionResult.error
+})
+
+// Keep placeholder validation while surfacing adapter errors for supported SQL targets.
 const isInvalid = computed(() => {
-  if (props.condition.rawSql !== undefined) {
-    const parsed = parseWhere(props.condition.rawSql)
-    return !parsed.success || !parsed.expression
-  }
+  if (queryStore.adapter.sql) return generationError.value !== null
   const value = props.condition.value
   return !props.condition.field.name.trim() || !operator.value || (
     value.hasValue && value.dataType === 'field' && value.dataShape === 'single' && !value.value.trim()
@@ -84,7 +89,13 @@ const emit = defineEmits<{
     :style="colourStyle"
     @click="editable && emit('select', condition)"
   >
-    <button type="button" class="condition-content" :disabled="!editable">
+    <button
+      type="button"
+      class="condition-content"
+      :disabled="!editable"
+      :aria-invalid="isInvalid"
+      :aria-describedby="isInvalid ? `${condition.id}-error` : undefined"
+    >
       <span v-if="condition.rawSql !== undefined" aria-label="Raw SQL condition">
         {{ condition.rawSql || 'Enter a condition' }}
       </span>
@@ -98,10 +109,11 @@ const emit = defineEmits<{
     </button>
     <span
       v-if="isInvalid"
+      :id="`${condition.id}-error`"
       class="condition-warning material-symbols-outlined"
       role="img"
-      aria-label="Incomplete condition"
-      title="Incomplete condition"
+      :aria-label="generationError ?? 'Incomplete condition'"
+      :title="generationError ?? 'Incomplete condition'"
     >
       warning
     </span>

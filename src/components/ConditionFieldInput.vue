@@ -9,6 +9,7 @@ const props = defineProps<{
   label?: string
   hideLabel?: boolean
   hideModifiers?: boolean
+  modifiers?: readonly FieldModifier[]
 }>()
 
 const emit = defineEmits<{
@@ -22,22 +23,8 @@ const optionsId = `field-options-${createId()}`
 
 const modifierControlsVisible = ref(props.modelValue.modifier !== null)
 const modifierId = `field-modifier-${createId()}`
-const fieldModifiers: readonly FieldModifier[] = [
-  'lower',
-  'upper',
-  'trim',
-  'ltrim',
-  'rtrim',
-  'initcap',
-  'reverse',
-  'length',
-  'abs',
-  'round',
-  'floor',
-  'ceil',
-  'trunc',
-  'sqrt',
-]
+// Use only the modifier capabilities supplied by the active adapter.
+const fieldModifiers = computed(() => props.modifiers ?? [])
 
 // Reveal modifiers applied by import; the parent's condition key resets visibility on selection.
 watch(() => props.modelValue.modifier, (modifier) => {
@@ -55,7 +42,7 @@ function toggleModifierControls() {
 // Apply one allowed modifier while preserving the underlying field name.
 function changeFieldModifier(event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  const modifier = fieldModifiers.find((option) => option === value) ?? null
+  const modifier = fieldModifiers.value.find((option) => option === value) ?? null
   emit('update:modelValue', { ...props.modelValue, modifier })
 }
 
@@ -173,7 +160,7 @@ watch(filteredOptions, () => {
         </ul>
       </div>
       <button
-        v-if="!hideModifiers"
+        v-if="!hideModifiers && fieldModifiers.length"
         type="button"
         class="field-modifier-toggle"
         :class="{ 'has-modifier': modifierControlsVisible || modelValue.modifier !== null }"
@@ -186,7 +173,7 @@ watch(filteredOptions, () => {
         <span class="material-symbols-outlined" aria-hidden="true">functions</span>
       </button>
     </div>
-    <label v-if="!hideModifiers" v-show="modifierControlsVisible" class="field-modifier-input">
+    <label v-if="!hideModifiers && fieldModifiers.length" v-show="modifierControlsVisible" class="field-modifier-input">
       <select
         :id="modifierId"
         :value="modelValue.modifier ?? ''"

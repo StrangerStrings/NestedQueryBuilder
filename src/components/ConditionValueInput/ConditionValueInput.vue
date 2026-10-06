@@ -261,6 +261,25 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
       hide-modifiers
       @update:model-value="editValue($event.name)"
     />
+    <div
+      v-else-if="selectedValue.dataType === 'field' && selectedValue.dataShape === 'range'"
+      class="value-range"
+    >
+      <ConditionFieldInput
+        :model-value="{ name: selectedValue.value[0], modifier: null }"
+        :options="fieldOptions"
+        label="From field"
+        hide-modifiers
+        @update:model-value="editValue($event.name, 0)"
+      />
+      <ConditionFieldInput
+        :model-value="{ name: selectedValue.value[1], modifier: null }"
+        :options="fieldOptions"
+        label="To field"
+        hide-modifiers
+        @update:model-value="editValue($event.name, 1)"
+      />
+    </div>
     <ConditionScalarInput
       v-else-if="selectedValue.dataType !== 'field' && selectedValue.dataShape === 'single'"
       :key="`${selectedValue.dataType}-single`"
@@ -289,9 +308,10 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
       />
     </div>
     <ConditionListInput
-      v-else-if="selectedValue.dataType !== 'field'"
+      v-else-if="selectedValue.dataShape === 'list'"
       :key="`${selectedValue.dataType}-list`"
       :model-value="selectedValue"
+      :field-options="fieldOptions"
       @update:model-value="emit('update:modelValue', $event)"
     />
   </div>

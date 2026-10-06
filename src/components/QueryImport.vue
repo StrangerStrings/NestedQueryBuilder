@@ -1,17 +1,28 @@
 <script setup lang="ts">
-import { ref, useId } from 'vue'
+import { ref, useId, watch } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
-import type { ImportWhereError } from '../databases/postgresql/parsing/importWhereError'
+import type { FilterImportResult } from '../types/databaseAdapter'
+
+type ImportError = Extract<FilterImportResult, { success: false }>['error']
 
 const queryStore = useQueryStore()
 const sqlFilter = ref('')
-const importError = ref<ImportWhereError | null>(null)
+const importError = ref<ImportError | null>(null)
 const importSucceeded = ref(false)
 const sqlFilterId = useId()
+const importHelpId = `${sqlFilterId}-help`
 const importErrorId = `${sqlFilterId}-error`
+
+// Clear SQL drafts and feedback on every database change, including direct store entry points.
+watch(() => queryStore.database, () => {
+  sqlFilter.value = ''
+  importError.value = null
+  importSucceeded.value = false
+}, { flush: 'sync' })
 
 // Import the SQL filter and display success or the returned error.
 function importFilter() {
+  if (!queryStore.adapter.importSqlFilter) return
   const result = queryStore.importSqlFilter(sqlFilter.value)
   importSucceeded.value = result.success
   if (result.success) {
@@ -23,22 +34,24 @@ function importFilter() {
 </script>
 
 <template>
-  <section aria-label="Query input">
+  <section aria-label="Query import">
     <form
-      v-if="queryStore.database === 'postgresql'"
       class="sql-import"
       @submit.prevent="importFilter"
     >
       <textarea
         :id="sqlFilterId"
+        aria-label="SQL filter to import"
         v-model="sqlFilter"
         @input="importSucceeded = false"
         rows="4"
         placeholder="WHERE status = 'online' AND deleted_at IS NULL"
         :spellcheck="false"
         :aria-invalid="!!importError"
-        :aria-describedby="importError ? importErrorId : undefined"
+        :aria-describedby="[queryStore.adapter.sql?.importHelpText ? importHelpId : null, importError ? importErrorId : null].filter(Boolean).join(' ') || undefined"
       />
+      <p v-if="queryStore.adapter.sql?.importHelpText" :id="importHelpId">{{ queryStore.adapter.sql.importHelpText }}</p>
+      <button type="submit">Import {{ queryStore.adapter.label }} Query</button>
       <p v-if="importError" :id="importErrorId" class="import-error" role="alert">
         {{ importError.message }}
         <code v-if="importError.fragment">{{ importError.fragment }}</code>
@@ -46,7 +59,6 @@ function importFilter() {
       <div role="status" aria-live="polite">
         <p v-if="importSucceeded" class="import-success">Query imported successfully.</p>
       </div>
-      <button type="submit">Import WHERE</button>
     </form>
   </section>
 </template>

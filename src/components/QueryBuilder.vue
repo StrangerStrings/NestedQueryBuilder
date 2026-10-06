@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition, QueryGroup as QueryGroupModel } from '../types/query'
@@ -8,6 +8,11 @@ import QueryGroup from './QueryGroup.vue'
 
 const queryStore = useQueryStore()
 const selectedConditionId = ref<string | null>(null)
+
+// Drop selection immediately when the query root is replaced by a switch or import.
+watch(() => queryStore.query.id, () => {
+  selectedConditionId.value = null
+}, { flush: 'sync' })
 
 // Resolve the selection from the current tree so deleted conditions close their panel.
 function findSelectedCondition(group: QueryGroupModel): QueryCondition | null {
@@ -50,6 +55,7 @@ function closeConditionPanel() {
       <Transition name="panel">
         <ConditionPanel
           v-if="selectedCondition"
+          :key="selectedCondition.id"
           :condition="selectedCondition"
           @close="closeConditionPanel"
         />

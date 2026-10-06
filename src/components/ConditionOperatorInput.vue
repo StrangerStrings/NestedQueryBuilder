@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import type { DatabaseOperator } from '../types/databaseOperator'
 
 const props = defineProps<{
@@ -11,17 +11,19 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-// Read the description for the currently selected operator.
-const operatorDescription = computed(
-  () => props.options.find((operator) => operator.id === props.modelValue)?.description ?? '',
+const operatorHelpId = useId()
+
+// Resolve catalogue wording without making dialect assumptions in the shared control.
+const selectedOperator = computed(
+  () => props.options.find((operator) => operator.id === props.modelValue),
 )
 
-// Allow all implemented shapes and disable only operators without a supported scalar type.
+// Allow all input shapes and value types implemented by the shared editor.
 function isOperatorDisabled(operator: DatabaseOperator): boolean {
   const input = operator.valueInput
   return (
     input.hasValue &&
-    !input.dataTypes.some((type) => type === 'text' || type === 'number' || type === 'boolean')
+    !input.dataTypes.some((type) => type !== 'duration')
   )
 }
 </script>
@@ -33,6 +35,7 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
       <select
         :value="modelValue"
         aria-label="Operator"
+        :aria-describedby="selectedOperator ? operatorHelpId : undefined"
         :disabled="options.length === 0"
         @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       >
@@ -53,8 +56,11 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
         >
           info
         </span>
-        <span v-if="operatorDescription" class="operator-tooltip">
-          {{ operatorDescription }}
+        <span v-if="selectedOperator" :id="operatorHelpId" class="operator-tooltip" role="tooltip">
+          {{ selectedOperator.description }}
+          <span v-if="selectedOperator.helpText" class="operator-help">
+            {{ selectedOperator.helpText }}
+          </span>
         </span>
       </span>
     </div>
@@ -110,9 +116,15 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
   transition: opacity 0.12s;
 }
 
-.operator-info-wrapper:hover .operator-tooltip {
+.operator-info-wrapper:hover .operator-tooltip,
+.operator-input-row:focus-within .operator-tooltip {
   visibility: visible;
   opacity: 1;
+}
+
+.operator-help {
+  display: block;
+  margin-top: 0.5rem;
 }
 
 select {

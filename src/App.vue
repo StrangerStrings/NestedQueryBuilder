@@ -1,30 +1,77 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useQueryStore } from './stores/queryStore'
+import { databaseDefinitions, type DatabaseId } from './databases/databases'
 
 import QueryBuilder from './components/QueryBuilder.vue'
 import QueryPreview from './components/QueryPreview.vue'
-import QueryInput from './components/QueryInput.vue'
+import QueryImport from './components/QueryImport.vue'
 import TabNavigation from './components/TabNavigation.vue'
 import SchemaImport from './components/SchemaImport.vue'
 import SettingsPage from './components/SettingsPage.vue'
 
-type Tab = 'builder' | 'output' | 'input' | 'schema' | 'databases' | 'settings'
+type Tab = 'builder' | 'output' | 'import' | 'schema' | 'databases' | 'settings'
 
 const activeTab = ref<Tab>('builder')
+const queryStore = useQueryStore()
+
+// Switch the shared builder to the selected database target.
+function selectDatabase(event: Event) {
+  queryStore.changeDatabase((event.target as HTMLSelectElement).value as DatabaseId)
+}
+
+// Guard navigation entry points using the same capabilities as the visible tabs.
+function selectTab(tab: Tab) {
+  if (!queryStore.adapter.placeholder && (
+    (tab === 'import' && !queryStore.adapter.importSqlFilter) ||
+    (tab === 'schema' && !queryStore.adapter.importSchemaSql)
+  )) return
+  activeTab.value = tab
+}
+
+// Return to the builder if a capability change removes the currently selected import view.
+watch(
+  () => queryStore.database,
+  () => {
+    if (queryStore.adapter.placeholder) return
+    if ((activeTab.value === 'import' && !queryStore.adapter.importSqlFilter) ||
+        (activeTab.value === 'schema' && !queryStore.adapter.importSchemaSql)) {
+      activeTab.value = 'builder'
+    }
+  },
+  { flush: 'sync' },
+)
 </script>
 
 <template>
   <div class="app-shell">
     <div class="top-navigation">
-      <TabNavigation :active-tab="activeTab" @select="activeTab = $event" />
+      <TabNavigation :active-tab="activeTab" @select="selectTab" />
     </div>
     <main class="main-content">
-      <QueryBuilder v-if="activeTab === 'builder'" />
-      <QueryPreview v-else-if="activeTab === 'output'" />
-      <QueryInput v-show="activeTab === 'input'" />
-      <SchemaImport v-show="activeTab === 'schema'" />
+      <QueryBuilder v-if="activeTab === 'builder'" :key="`builder-${queryStore.database}`" />
+      <QueryPreview v-else-if="activeTab === 'output'" :key="`output-${queryStore.database}`" />
+      <QueryImport
+        v-if="queryStore.adapter.importSqlFilter || queryStore.adapter.placeholder"
+        :key="`import-${queryStore.database}`"
+        v-show="activeTab === 'import'"
+      />
+      <SchemaImport
+        v-if="queryStore.adapter.importSchemaSql || queryStore.adapter.placeholder"
+        :key="`schema-${queryStore.database}`"
+        v-show="activeTab === 'schema'"
+      />
       <section v-if="activeTab === 'databases'" aria-label="Databases">
         <h2>Databases</h2>
+        <label for="database-target">Database target</label>
+        <select id="database-target" :value="queryStore.database" @change="selectDatabase">
+          <option v-for="(definition, id) in databaseDefinitions" :key="id" :value="id">
+            {{ definition.label }}
+          </option>
+        </select>
+        <p v-if="queryStore.adapter.sql?.helpText">
+          {{ queryStore.adapter.label }}: {{ queryStore.adapter.sql.helpText }}
+        </p>
       </section>
       <SettingsPage v-if="activeTab === 'settings'" />
     </main>
