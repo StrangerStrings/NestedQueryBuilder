@@ -4,8 +4,9 @@ import { ref } from 'vue'
 import QueryBuilder from './components/QueryBuilder.vue'
 import QueryPreview from './components/QueryPreview.vue'
 import TabNavigation from './components/TabNavigation.vue'
+import SchemaImport from './components/SchemaImport.vue'
 
-type Tab = 'builder' | 'query'
+type Tab = 'builder' | 'query' | 'schema'
 
 const activeTab = ref<Tab>('builder')
 </script>
@@ -17,7 +18,8 @@ const activeTab = ref<Tab>('builder')
     </div>
     <main class="main-content">
       <QueryBuilder v-if="activeTab === 'builder'" />
-      <QueryPreview v-else />
+      <QueryPreview v-else-if="activeTab === 'query'" />
+      <SchemaImport v-show="activeTab === 'schema'" />
     </main>
   </div>
 </template>

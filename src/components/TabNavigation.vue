@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type Tab = 'builder' | 'query'
+type Tab = 'builder' | 'query' | 'schema'
 
 defineProps<{
   activeTab: Tab
@@ -27,6 +27,14 @@ const emit = defineEmits<{
       @click="emit('select', 'query')"
     >
       Query
+    </button>
+    <button
+      type="button"
+      :class="{ active: activeTab === 'schema' }"
+      :aria-current="activeTab === 'schema' ? 'page' : undefined"
+      @click="emit('select', 'schema')"
+    >
+      Schema
     </button>
   </nav>
 </template>

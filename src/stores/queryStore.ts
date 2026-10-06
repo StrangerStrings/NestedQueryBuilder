@@ -13,6 +13,7 @@ import { createId } from '../utils/createId'
 import { convertConditionValue } from '../utils/convertConditionValue'
 import { importSqlWhere, type ImportWhereResult } from '../databases/postgresql/parsing/importWhere'
 import { parseWhere } from '../databases/postgresql/parsing/parseWhere'
+import { importSchema, type ImportSchemaResult } from '../databases/postgresql/schema/importSchema'
 import { importWhereCondition } from '../databases/postgresql/parsing/importWhereCondition'
 import { generateWhereSql, type GenerateWhereSqlResult } from '../databases/postgresql/serialisation/generateWhereSql'
 
@@ -211,8 +212,16 @@ function getConditions(group: QueryGroup): QueryCondition[] {
 // Manage the query tree and its persistent field-colour assignments.
 export const useQueryStore = defineStore('query', () => {
   const database = ref<DatabaseId>('postgresql')
+  const schemaFields = ref<string[]>([])
   const query = ref<QueryGroup>(createEmptyQuery())
   const operators = computed(() => databaseDefinitions[database.value].operators)
+
+  // Preserve the previous schema suggestions unless the entire import succeeds.
+  function importSchemaSql(sql: string): ImportSchemaResult {
+    const result = importSchema(sql)
+    if (result.success) schemaFields.value = result.fields
+    return result
+  }
 
   // Regenerate SQL whenever the current query tree's fields, values, or structure change.
   const whereSqlResult = computed<GenerateWhereSqlResult>(() => generateWhereSql(query.value))
@@ -311,9 +320,9 @@ export const useQueryStore = defineStore('query', () => {
     return resolveConditionColour(condition, query.value.conditionColours)
   }
 
-  // Collect distinct nonempty fields from every condition, including nested groups.
+  // Combine imported schema fields with query-derived suggestions, removing duplicates.
   const uniqueFields = computed(() => {
-    const fields = new Set<string>()
+    const fields = new Set<string>(schemaFields.value)
 
     for (const condition of getConditions(query.value)) {
       if (condition.field.name.trim()) {
@@ -406,6 +415,8 @@ export const useQueryStore = defineStore('query', () => {
 
   return {
     database,
+    schemaFields,
+    importSchemaSql,
     editRawCondition,
     query,
     operators,
