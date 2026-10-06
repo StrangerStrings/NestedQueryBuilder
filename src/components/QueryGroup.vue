@@ -122,7 +122,7 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
 }
 
 .root-group-actions {
-  margin-right: 47px;
+  margin-right: 53px;
 }
 
 .mode-badge {

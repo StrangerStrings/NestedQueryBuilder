@@ -3,8 +3,11 @@ import { computed } from 'vue'
 import ConditionFieldInput from './ConditionFieldInput.vue'
 import ConditionOperatorInput from './ConditionOperatorInput.vue'
 import ConditionValueInput from './ConditionValueInput/ConditionValueInput.vue'
+import QueryDisplay from './QueryDisplay.vue'
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
+import { exportWhereCondition } from '../databases/postgresql/serialisation/exportWhereCondition'
+import { serializeWhereExpression } from '../databases/postgresql/serialisation/serializeWhereExpression'
 
 const queryStore = useQueryStore()
 
@@ -16,6 +19,13 @@ const props = defineProps<{
 const selectedOperator = computed(() =>
   queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
 )
+
+// Render only the selected condition with the same validation and SQL formatting as the query preview.
+const conditionSql = computed(() => {
+  if (queryStore.database !== 'postgresql') return null
+  const exported = exportWhereCondition(props.condition)
+  return exported.success ? serializeWhereExpression(exported.expression) : exported
+})
 
 // Match the condition's visible border, including its incomplete-state colour.
 const borderColour = computed(() =>
@@ -68,6 +78,19 @@ const emit = defineEmits<{
       @type-change="queryStore.changeConditionValueType(condition.id, $event)"
       :operator="selectedOperator"
     />
+    <section v-if="conditionSql" class="condition-preview" aria-label="Condition SQL preview">
+      <h4>Generated {{ queryStore.database }}</h4>
+      <div aria-live="polite" aria-atomic="true">
+        <QueryDisplay
+          v-if="conditionSql.success"
+          class="condition-sql"
+          :query-text="conditionSql.sql"
+          language="sql"
+          accessible-label="Generated PostgreSQL condition"
+        />
+        <p v-else>{{ conditionSql.error }}</p>
+      </div>
+    </section>
   </aside>
 </template>
 
@@ -106,5 +129,31 @@ button {
 
 button .material-symbols-outlined {
   font-size: 1.125rem;
+}
+
+.condition-preview {
+  margin: 2.5rem -1rem 0;
+  padding: 1rem 1rem;
+  border-top: 2px solid v-bind(borderColour);
+}
+
+.condition-preview h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: normal;
+  color: v-bind(borderColour);
+}
+
+.condition-preview p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.condition-sql :deep(pre) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 </style>
