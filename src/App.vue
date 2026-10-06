@@ -3,10 +3,12 @@ import { ref } from 'vue'
 
 import QueryBuilder from './components/QueryBuilder.vue'
 import QueryPreview from './components/QueryPreview.vue'
+import QueryInput from './components/QueryInput.vue'
 import TabNavigation from './components/TabNavigation.vue'
 import SchemaImport from './components/SchemaImport.vue'
+import SettingsPage from './components/SettingsPage.vue'
 
-type Tab = 'builder' | 'query' | 'schema'
+type Tab = 'builder' | 'output' | 'input' | 'schema' | 'databases' | 'settings'
 
 const activeTab = ref<Tab>('builder')
 </script>
@@ -18,8 +20,13 @@ const activeTab = ref<Tab>('builder')
     </div>
     <main class="main-content">
       <QueryBuilder v-if="activeTab === 'builder'" />
-      <QueryPreview v-else-if="activeTab === 'query'" />
+      <QueryPreview v-else-if="activeTab === 'output'" />
+      <QueryInput v-show="activeTab === 'input'" />
       <SchemaImport v-show="activeTab === 'schema'" />
+      <section v-if="activeTab === 'databases'" aria-label="Databases">
+        <h2>Databases</h2>
+      </section>
+      <SettingsPage v-if="activeTab === 'settings'" />
     </main>
   </div>
 </template>
@@ -41,6 +48,7 @@ const activeTab = ref<Tab>('builder')
   display: flex;
   align-items: center;
   gap: 2rem;
+  overflow-x: auto;
   border-bottom: 1px solid #d9dee7;
 }
 

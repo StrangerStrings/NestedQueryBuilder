@@ -102,6 +102,7 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
 .query-group {
   --group-border-color: #bcc4cf;
   --group-border-color: #949eac;
+  --group-background-color: #fcfcfd;
   --mode-badge-color: #949eac;
   position: relative;
   display: grid;
@@ -110,17 +111,19 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
   margin: 5px 0;
   border: 4px solid var(--group-border-color);
   border-radius: 36px;
-  background: #fff;
+  background: var(--group-background-color);
 }
 
 .query-group.mode-all {
   --group-border-color: #858e9b;
   --group-border-color: #707987;
+  --group-background-color: #eceef0;
   --mode-badge-color: #707987;
 }
 
 .query-group.mode-none {
   --group-border-color: #4a5361;
+  --group-background-color: #dbdde0;
   --mode-badge-color: #4a5361;
 }
 
@@ -149,7 +152,7 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
   border: 4px solid var(--mode-badge-color);
   border-radius: 16px;
   color: var(--mode-badge-color);
-  background: #fff;
+  background: var(--group-background-color);
   font-family: inherit;
   cursor: pointer;
 }

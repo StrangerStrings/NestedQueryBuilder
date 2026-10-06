@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import type { QueryCondition } from '../types/query'
 import { parseWhere } from '../databases/postgresql/parsing/parseWhere'
 import { rawConditionColour } from '../colours/palette'
@@ -12,13 +13,18 @@ const props = defineProps<{
 }>()
 
 const queryStore = useQueryStore()
+const settingsStore = useSettingsStore()
 // Resolve operator metadata for the display label and operator validation.
 const operator = computed(() =>
   queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
 )
 
-// Keep the stored operator ID visible when its metadata is unavailable.
-const operatorLabel = computed(() => operator.value?.label ?? props.condition.operatorId)
+// Apply the display preference, falling back to the stored ID when metadata is unavailable.
+const operatorLabel = computed(() =>
+  settingsStore.showOperatorLabels
+    ? operator.value?.label ?? props.condition.operatorId
+    : props.condition.operatorId,
+)
 
 // Show the optional function around the field name while preserving the empty-field prompt.
 const fieldLabel = computed(() => {
