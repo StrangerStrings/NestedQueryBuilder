@@ -54,7 +54,7 @@ function toTemporal(
   return defaults[target]
 }
 
-// Convert items in order and fill missing values with defaults without mutating the source.
+// Convert literal or field items in order and fill missing values without mutating the source.
 function convertShape<T extends Scalar>(
   source: ConditionValue,
   shape: 'single' | 'range' | 'list',
@@ -71,7 +71,8 @@ function convertShape<T extends Scalar>(
     source.dataType !== 'boolean' &&
     source.dataType !== 'date' &&
     source.dataType !== 'time' &&
-    source.dataType !== 'datetime'
+    source.dataType !== 'datetime' &&
+    source.dataType !== 'field'
   ) {
     throw new Error('Duration value conversion is not implemented.')
   }
@@ -94,7 +95,7 @@ function convertShape<T extends Scalar>(
   return { dataShape: 'range', value: [first, second] }
 }
 
-// Convert single, range, or list values using the target's type and shape, ignoring its payload.
+// Convert type and shape, preserving text/field names and defaulting other field transitions.
 export function convertConditionValue(
   source: ConditionValue,
   target: ConditionValue,
@@ -102,11 +103,22 @@ export function convertConditionValue(
   if (!target.hasValue) return { hasValue: false }
 
   const defaults = temporalDefaults(new Date())
+  const isFieldSource = source.hasValue && source.dataType === 'field'
   const isTemporalSource =
     source.hasValue &&
     (source.dataType === 'date' || source.dataType === 'time' || source.dataType === 'datetime')
 
   switch (target.dataType) {
+    case 'field':
+      return {
+        hasValue: true,
+        dataType: 'field',
+        ...convertShape(source, target.dataShape, '', (value) =>
+          source.hasValue && (source.dataType === 'text' || source.dataType === 'field')
+            ? String(value)
+            : '',
+        ),
+      }
     case 'text':
       return {
         hasValue: true,
@@ -117,13 +129,13 @@ export function convertConditionValue(
       return {
         hasValue: true,
         dataType: 'number',
-        ...convertShape(source, target.dataShape, 0, isTemporalSource ? () => 0 : toNumber),
+        ...convertShape(source, target.dataShape, 0, isTemporalSource || isFieldSource ? () => 0 : toNumber),
       }
     case 'boolean':
       return {
         hasValue: true,
         dataType: 'boolean',
-        ...convertShape(source, target.dataShape, false, isTemporalSource ? () => false : toBoolean),
+        ...convertShape(source, target.dataShape, false, isTemporalSource || isFieldSource ? () => false : toBoolean),
       }
     case 'date':
     case 'time':

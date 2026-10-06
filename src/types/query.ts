@@ -12,6 +12,8 @@ type ValueTypeMap = {
   /** Local datetime in YYYY-MM-DDTHH:mm:ss format, without a timezone. */
   datetime: string
   duration: string
+  /** A column reference, optionally qualified by table or schema. */
+  field: string
 }
 
 /** A condition's selected value type, input shape, and value. */
@@ -28,11 +30,34 @@ export type ConditionValue =
       )
     }[ValueDataType]
 
+/** A single optional transformation of a condition's field. */
+export type FieldModifier =
+  | 'lower'
+  | 'upper'
+  | 'trim'
+  | 'ltrim'
+  | 'rtrim'
+  | 'initcap'
+  | 'reverse'
+  | 'length'
+  | 'abs'
+  | 'round'
+  | 'floor'
+  | 'ceil'
+  | 'trunc'
+  | 'sqrt'
+
+/** A field name with zero or one modifier. */
+export type ConditionField = {
+  name: string
+  modifier: FieldModifier | null
+}
+
 /** A leaf in the query tree that applies an operator to a field. */
 export type QueryCondition = {
   kind: 'condition'
   id: string
-  field: string
+  field: ConditionField
   operatorId: string
   value: ConditionValue
 }

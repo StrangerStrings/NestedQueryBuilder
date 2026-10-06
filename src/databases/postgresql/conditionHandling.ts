@@ -1,4 +1,4 @@
-import type { Expr, ExprRef } from 'pgsql-ast-parser'
+import type { Expr } from 'pgsql-ast-parser'
 import type { ConditionValue } from '../../types/query'
 import type { PostgresqlOperator } from './operators'
 
@@ -118,10 +118,10 @@ function serialisesAs<K extends PostgresqlOperator['serialisation']['kind']>(
   return operator.serialisation.kind === kind
 }
 
-// Build metadata-selected AST structures, using != for canonical <> as required by parser types.
+// Build conditions around a field expression, using != for canonical <> as required by parser types.
 export function createConditionAst(
   operator: PostgresqlOperator,
-  field: ExprRef,
+  field: Expr,
   literals: Expr[],
 ): CreateConditionAstResult {
   const operatorId = operator.id

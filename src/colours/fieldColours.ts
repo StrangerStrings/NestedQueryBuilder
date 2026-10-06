@@ -1,3 +1,4 @@
+import type { QueryCondition } from '../types/query'
 import {
   conditionColourPalette,
   conditionColourVariants,
@@ -8,7 +9,7 @@ import {
 export type FieldColourAssignments = Partial<Record<string, ConditionColourId>>
 export type ConditionColourAssignments = Partial<Record<string, FieldColourAssignments>>
 
-type FieldCondition = { id: string; field: string }
+type FieldCondition = Pick<QueryCondition, 'id' | 'field'>
 
 // Visit every family before advancing to another shade when allocating new fields.
 const allocationPalette = conditionColourVariants.flatMap((variant) =>
@@ -21,7 +22,7 @@ export function assignFieldColours(
   existingAssignments: FieldColourAssignments = {},
   previousConditions: readonly FieldCondition[] = [],
 ): FieldColourAssignments {
-  const fields = new Set(conditions.map((condition) => condition.field.trim()).filter(Boolean))
+  const fields = new Set(conditions.map((condition) => condition.field.name.trim()).filter(Boolean))
   let assignments = { ...existingAssignments }
   const transferredFields = new Set<string>()
 
@@ -30,10 +31,10 @@ export function assignFieldColours(
   }
 
   for (const condition of conditions) {
-    const name = condition.field.trim()
+    const name = condition.field.name.trim()
     if (!name || Object.prototype.hasOwnProperty.call(assignments, name)) continue
 
-    const previousField = previousConditions.find((item) => item.id === condition.id)?.field.trim()
+    const previousField = previousConditions.find((item) => item.id === condition.id)?.field.name.trim()
     const previousColour =
       previousField && !fields.has(previousField) && !transferredFields.has(previousField)
         ? getFieldColour(previousField, existingAssignments)
@@ -79,11 +80,11 @@ export function assignConditionColours(
   previousConditions: readonly FieldCondition[] = [],
 ): ConditionColourAssignments {
   let assignments: ConditionColourAssignments = {}
-  const fields = new Set(conditions.map((condition) => condition.field.trim()).filter(Boolean))
+  const fields = new Set(conditions.map((condition) => condition.field.name.trim()).filter(Boolean))
 
   // Preserve every unchanged condition before allocating shades to new or renamed ones.
   for (const condition of conditions) {
-    const field = condition.field.trim()
+    const field = condition.field.name.trim()
     const colour = getConditionColour(condition, existingAssignments)
     const baseColour = getFieldColour(field, fieldAssignments)
     if (!colour || colour.family !== baseColour?.family) continue
@@ -95,7 +96,7 @@ export function assignConditionColours(
   }
 
   for (const condition of conditions) {
-    const field = condition.field.trim()
+    const field = condition.field.name.trim()
     const baseColour = getFieldColour(field, fieldAssignments)
     if (!baseColour) continue
 
@@ -111,7 +112,7 @@ export function assignConditionColours(
       conditions
         .filter(
           (item) =>
-            item.field.trim() === field &&
+            item.field.name.trim() === field &&
             Object.prototype.hasOwnProperty.call(fieldColours, item.id),
         )
         .map((item) => fieldColours[item.id]),
@@ -121,7 +122,7 @@ export function assignConditionColours(
     const candidates = familyColours.slice(start).concat(familyColours.slice(0, start))
     const previousCondition = previousConditions.find((item) => item.id === condition.id)
     const previousColour =
-      previousCondition && !fields.has(previousCondition.field.trim())
+      previousCondition && !fields.has(previousCondition.field.name.trim())
         ? getConditionColour(previousCondition, existingAssignments)
         : undefined
     const transferredColour =
@@ -149,7 +150,7 @@ export function getConditionColour(
   condition: FieldCondition,
   assignments: ConditionColourAssignments | undefined,
 ): ConditionColour | undefined {
-  const field = condition.field.trim()
+  const field = condition.field.name.trim()
   if (!field || !assignments || !Object.prototype.hasOwnProperty.call(assignments, field)) return
 
   const fieldColours = assignments[field]

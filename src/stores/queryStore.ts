@@ -16,21 +16,22 @@ import { generateWhereSql, type GenerateWhereSqlResult } from '../databases/post
 
 export type DatabaseId = 'postgresql' | 'elasticsearch'
 
-// Limit value transitions to the scalar types implemented by the shared converter.
+// Allow the literal and field types implemented by the shared converter.
 function isSupportedValueType(
   dataType: ValueDataType,
-): dataType is 'text' | 'number' | 'boolean' | 'date' | 'time' | 'datetime' {
+): dataType is 'text' | 'number' | 'boolean' | 'date' | 'time' | 'datetime' | 'field' {
   return (
     dataType === 'text' ||
     dataType === 'number' ||
     dataType === 'boolean' ||
     dataType === 'date' ||
     dataType === 'time' ||
-    dataType === 'datetime'
+    dataType === 'datetime' ||
+    dataType === 'field'
   )
 }
 
-// Resolve all supported shapes from metadata; the shared converter supplies values and defaults.
+// Resolve allowed literal or field targets from metadata and convert their values and shapes.
 function convertOperatorValue(
   source: ConditionValue,
   operator: DatabaseOperator,
@@ -55,6 +56,7 @@ function convertOperatorValue(
 
   const shape = input.dataShape
   switch (dataType) {
+    case 'field':
     case 'text':
     case 'date':
     case 'time':
@@ -98,49 +100,49 @@ function createEmptyQuery(): QueryGroup {
       {
         kind: 'condition',
         id: createId(),
-        field: 'status',
+        field: { name: 'status', modifier: null },
         operatorId: '=',
         value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: 'tatters',
+        field: { name: 'tatters', modifier: null },
         operatorId: '=',
         value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'yes' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: 'age',
+        field: { name: 'age', modifier: null },
         operatorId: '=',
         value: { hasValue: true, dataType: 'text', dataShape: 'single', value: '35' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: 'asdf',
+        field: { name: 'asdf', modifier: null },
         operatorId: '=',
         value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: 'trew',
+        field: { name: 'trew', modifier: null },
         operatorId: '=',
         value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: 'rewwer',
+        field: { name: 'rewwer', modifier: null },
         operatorId: '=',
         value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: 'age',
+        field: { name: 'age', modifier: null },
         operatorId: '=',
         value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
       },
@@ -224,8 +226,8 @@ export const useQueryStore = defineStore('query', () => {
 
   // Save active colours, transferring unused assignments as condition fields change.
   function reserveConditionColours(
-    conditions: { id: string; field: string }[],
-    previousConditions: { id: string; field: string }[] = [],
+    conditions: Pick<QueryCondition, 'id' | 'field'>[],
+    previousConditions: Pick<QueryCondition, 'id' | 'field'>[] = [],
   ) {
     const assignments = assignFieldColours(conditions, query.value.fieldColours, previousConditions)
 
@@ -249,7 +251,7 @@ export const useQueryStore = defineStore('query', () => {
     () =>
       getConditions(query.value).map((condition) => ({
         id: condition.id,
-        field: condition.field.trim(),
+        field: { ...condition.field, name: condition.field.name.trim() },
       })),
     reserveConditionColours,
     { immediate: true, flush: 'pre' },
@@ -307,8 +309,8 @@ export const useQueryStore = defineStore('query', () => {
     const fields = new Set<string>()
 
     for (const condition of getConditions(query.value)) {
-      if (condition.field.trim()) {
-        fields.add(condition.field)
+      if (condition.field.name.trim()) {
+        fields.add(condition.field.name)
       }
     }
 
@@ -339,32 +341,36 @@ export const useQueryStore = defineStore('query', () => {
     return {
       id: createId(),
       kind: 'condition',
-      field: uniqueFields.value[0] ?? '',
+      field: { name: uniqueFields.value[0] ?? '', modifier: null },
       operatorId: value !== undefined && operator ? operator.id : '',
       value: value ?? { hasValue: false },
     }
   }
 
-  // Add a condition with defaults derived from the current query and database.
+  // Add and return a condition so the editor can select it immediately.
   function addCondition(groupId: string) {
     const group = findGroupById(query.value, groupId)
 
     if (group) {
-      group.children.push(createCondition())
+      const condition = createCondition()
+      group.children.push(condition)
+      return condition
     }
   }
 
-  // Add a group containing one condition with the current query and database defaults.
+  // Add a group and return its initial condition so the editor can select it.
   function addGroup(groupId: string) {
     const group = findGroupById(query.value, groupId)
 
     if (group) {
+      const condition = createCondition()
       group.children.push({
         id: createId(),
         kind: 'group',
         mode: 'all',
-        children: [createCondition()],
+        children: [condition],
       })
+      return condition
     }
   }
 

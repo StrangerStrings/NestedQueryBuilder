@@ -16,13 +16,14 @@ const root = ref<HTMLElement>()
 const rows = shallowRef<{ id: string; value: string | number | boolean }[]>([])
 const pendingValues = new WeakSet<object>()
 
-// Accept scalar and temporal lists without converting incoming values.
+// Accept literal lists without converting values; field references currently use single inputs.
 const listValue = computed(() => {
   const value = props.modelValue
   if (
     value.hasValue &&
     value.dataShape === 'list' &&
-    value.dataType !== 'duration'
+    value.dataType !== 'duration' &&
+    value.dataType !== 'field'
   )
     return value
   return undefined

@@ -18,10 +18,21 @@ const operator = computed(() =>
 // Keep the stored operator ID visible when its metadata is unavailable.
 const operatorLabel = computed(() => operator.value?.label ?? props.condition.operatorId)
 
-// Show list items explicitly, including empty text and falsy values, while preserving other summaries.
+// Show the optional function around the field name while preserving the empty-field prompt.
+const fieldLabel = computed(() => {
+  const { name, modifier } = props.condition.field
+  const fieldName = name.trim()
+  if (!fieldName) return 'Select a field'
+  return modifier === null ? fieldName : `${modifier}(${fieldName})`
+})
+
+// Show field references without quotes while preserving literal and list summaries.
 const valueLabel = computed(() => {
   const value = props.condition.value
   if (!value.hasValue) return ''
+  if (value.dataType === 'field' && value.dataShape === 'single') {
+    return value.value.trim() || 'Select a field'
+  }
   if (value.dataShape === 'list') {
     return `[${value.value.map((item) => JSON.stringify(item)).join(', ')}]`
   }
@@ -39,8 +50,13 @@ const colourStyle = computed(() => {
     : undefined
 })
 
-// Validate the field and operator; empty and whitespace-only string values are valid.
-const isInvalid = computed(() => !props.condition.field.trim() || !operator.value)
+// Mark missing field references as incomplete while allowing empty text literals.
+const isInvalid = computed(() => {
+  const value = props.condition.value
+  return !props.condition.field.name.trim() || !operator.value || (
+    value.hasValue && value.dataType === 'field' && value.dataShape === 'single' && !value.value.trim()
+  )
+})
 
 const emit = defineEmits<{
   select: [condition: QueryCondition]
@@ -55,7 +71,7 @@ const emit = defineEmits<{
     @click="editable && emit('select', condition)"
   >
     <button type="button" class="condition-content" :disabled="!editable">
-      <span class="condition-field">{{ condition.field.trim() || 'Select a field' }}</span>
+      <span class="condition-field">{{ fieldLabel }}</span>
       <span class="condition-operator">{{ operatorLabel }}</span>
       <span v-if="condition.value.hasValue" class="condition-value">
         {{ valueLabel }}
@@ -103,15 +119,23 @@ const emit = defineEmits<{
   cursor: pointer;
 }
 
-.query-condition.is-selected::before {
+.query-condition.is-selected::before,
+.query-condition.is-selected::after {
   content: '';
   position: absolute;
   top: -3px;
   bottom: -3px;
-  left: 0;
   width: 6px;
   background: var(--condition-accent, #94a3b8);
   pointer-events: none;
+}
+
+.query-condition.is-selected::before {
+  left: 0;
+}
+
+.query-condition.is-selected::after {
+  right: 0;
 }
 
 .query-condition.is-invalid {
@@ -119,7 +143,8 @@ const emit = defineEmits<{
   border-color: #9ca3af;
 }
 
-.query-condition.is-invalid.is-selected::before {
+.query-condition.is-invalid.is-selected::before,
+.query-condition.is-invalid.is-selected::after {
   background: #9ca3af;
 }
 

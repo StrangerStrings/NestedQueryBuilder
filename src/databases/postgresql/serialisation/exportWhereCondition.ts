@@ -1,5 +1,5 @@
 import type { Expr, ExprRef } from 'pgsql-ast-parser'
-import type { QueryCondition } from '../../../types/query'
+import type { FieldModifier, QueryCondition } from '../../../types/query'
 import {
   createConditionAst,
   validateConditionValue,
@@ -10,9 +10,26 @@ import { postgresqlOperators } from '../operators'
 export type ExportWhereConditionResult =
   { success: true; expression: Expr } | { success: false; error: string; nodeId: string }
 
-// Resolve defined operators and validate their fields and values before metadata-driven construction.
+const supportedFieldModifiers: readonly FieldModifier[] = [
+  'lower',
+  'upper',
+  'trim',
+  'ltrim',
+  'rtrim',
+  'initcap',
+  'reverse',
+  'length',
+  'abs',
+  'round',
+  'floor',
+  'ceil',
+  'trunc',
+  'sqrt',
+]
+
+// Validate fields, optional modifiers, and values before metadata-driven AST construction.
 export function exportWhereCondition(condition: QueryCondition): ExportWhereConditionResult {
-  const field = condition.field.trim()
+  const field = condition.field.name.trim()
   if (!field) {
     return {
       success: false,
@@ -37,6 +54,19 @@ export function exportWhereCondition(condition: QueryCondition): ExportWhereCond
     }
   }
 
+  let fieldExpression: Expr = reference
+  const modifier = condition.field.modifier
+  if (modifier !== null) {
+    if (!supportedFieldModifiers.includes(modifier)) {
+      return {
+        success: false,
+        error: `Unsupported field modifier: ${String(modifier)}.`,
+        nodeId: condition.id,
+      }
+    }
+    fieldExpression = { type: 'call', function: { name: modifier }, args: [reference] }
+  }
+
   if (!condition.operatorId) {
     return {
       success: false,
@@ -59,7 +89,7 @@ export function exportWhereCondition(condition: QueryCondition): ExportWhereCond
     return { success: false, error: compatibilityError, nodeId: condition.id }
   }
   if (!value.hasValue) {
-    const result = createConditionAst(operator, reference, [])
+    const result = createConditionAst(operator, fieldExpression, [])
     return result.success ? result : { ...result, nodeId: condition.id }
   }
   if (value.dataShape !== 'single' && !Array.isArray(value.value)) {
@@ -86,6 +116,6 @@ export function exportWhereCondition(condition: QueryCondition): ExportWhereCond
     literals.push(result.expression)
   }
 
-  const result = createConditionAst(operator, reference, literals)
+  const result = createConditionAst(operator, fieldExpression, literals)
   return result.success ? result : { ...result, nodeId: condition.id }
 }

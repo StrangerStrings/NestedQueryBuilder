@@ -29,18 +29,18 @@ const conditionSql = computed(() => {
 
 // Match the condition's visible border, including its incomplete-state colour.
 const borderColour = computed(() =>
-  !props.condition.field.trim() || !selectedOperator.value
+  !props.condition.field.name.trim() || !selectedOperator.value
     ? '#9ca3af'
     : queryStore.getConditionColour(props.condition)?.accent ?? '#94a3b8',
 )
 
-// Use half the condition's background opacity without fading the panel's contents.
+// Use a lighter condition background tint without fading the panel's contents.
 const backgroundColour = computed(() => {
   const colour =
-    !props.condition.field.trim() || !selectedOperator.value
+    !props.condition.field.name.trim() || !selectedOperator.value
       ? '#f3f4f6'
       : queryStore.getConditionColour(props.condition)?.background ?? '#f8fafc'
-  return `color-mix(in srgb, ${colour} 50%, transparent)`
+  return `color-mix(in srgb, ${colour} 25%, transparent)`
 })
 
 const emit = defineEmits<{
@@ -61,6 +61,7 @@ const emit = defineEmits<{
       </button>
     </div>
     <ConditionFieldInput
+      :key="condition.id"
       :model-value="condition.field"
       :options="queryStore.uniqueFields"
       @update:model-value="queryStore.updateCondition(condition.id, { field: $event })"
@@ -71,6 +72,7 @@ const emit = defineEmits<{
       @update:model-value="queryStore.updateCondition(condition.id, { operatorId: $event })"
     />
     <ConditionValueInput
+      :field-options="queryStore.uniqueFields"
       v-if="selectedOperator"
       :key="condition.id"
       :model-value="condition.value"
@@ -132,8 +134,8 @@ button .material-symbols-outlined {
 }
 
 .condition-preview {
-  margin: 2.5rem -1rem 0;
-  padding: 1rem 1rem;
+  margin: 2rem -1rem 0;
+  padding: 1.6rem 1rem 0.8rem;
   border-top: 2px solid v-bind(borderColour);
 }
 

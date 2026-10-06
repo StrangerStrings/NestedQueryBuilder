@@ -22,6 +22,18 @@ const emit = defineEmits<{
   select: [condition: QueryConditionModel]
 }>()
 
+// Select the new condition through the existing event flow, including in nested groups.
+function addCondition() {
+  const condition = queryStore.addCondition(props.group.id)
+  if (condition) emit('select', condition)
+}
+
+// Select the initial condition created inside a new child group.
+function addGroup() {
+  const condition = queryStore.addGroup(props.group.id)
+  if (condition) emit('select', condition)
+}
+
 // Narrow child nodes to conditions before rendering their editable button.
 function isQueryCondition(child: QueryNode): child is QueryConditionModel {
   return child.kind === 'condition'
@@ -61,7 +73,7 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
         type="button"
         class="icon-button"
         aria-label="Add condition"
-        @click="queryStore.addCondition(group.id)"
+        @click="addCondition"
       >
         <span class="material-symbols-outlined" aria-hidden="true">add_box</span>
       </button>
@@ -69,7 +81,7 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
         type="button"
         class="icon-button"
         aria-label="Add child group"
-        @click="queryStore.addGroup(group.id)"
+        @click="addGroup"
       >
         <span class="material-symbols-outlined" aria-hidden="true">library_add</span>
       </button>

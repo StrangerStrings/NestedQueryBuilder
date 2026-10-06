@@ -17,7 +17,7 @@ export const postgresqlOperators = [
     valueInput: {
       hasValue: true,
       dataShape: 'single',
-      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
+      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration', 'field'],
     },
   },
   {
@@ -29,7 +29,7 @@ export const postgresqlOperators = [
     valueInput: {
       hasValue: true,
       dataShape: 'single',
-      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
+      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration', 'field'],
     },
   },
   {
@@ -41,7 +41,7 @@ export const postgresqlOperators = [
     valueInput: {
       hasValue: true,
       dataShape: 'single',
-      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
+      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration', 'field'],
     },
   },
   {
@@ -53,7 +53,7 @@ export const postgresqlOperators = [
     valueInput: {
       hasValue: true,
       dataShape: 'single',
-      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
+      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration', 'field'],
     },
   },
   {
@@ -65,7 +65,7 @@ export const postgresqlOperators = [
     valueInput: {
       hasValue: true,
       dataShape: 'single',
-      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
+      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration', 'field'],
     },
   },
   {
@@ -77,7 +77,7 @@ export const postgresqlOperators = [
     valueInput: {
       hasValue: true,
       dataShape: 'single',
-      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration'],
+      dataTypes: ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'duration', 'field'],
     },
   },
   {
@@ -152,7 +152,7 @@ export const postgresqlOperators = [
     label: 'matches pattern',
     description:
       'Matches a text pattern, where % represents any number of characters and _ represents one character.',
-    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text', 'field'] },
   },
   {
     id: 'NOT LIKE' as const,
@@ -161,7 +161,7 @@ export const postgresqlOperators = [
     label: 'not match pattern',
     description:
       'Matches text that does not match the supplied pattern. Use % for any number of characters and _ for one character.',
-    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text', 'field'] },
   },
   {
     id: 'ILIKE' as const,
@@ -170,7 +170,7 @@ export const postgresqlOperators = [
     label: 'matches pattern, ignore case',
     description:
       'Matches a text pattern, ignoring case. Use % for any number of characters and _ for one character.',
-    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text', 'field'] },
   },
   {
     id: 'NOT ILIKE' as const,
@@ -179,7 +179,7 @@ export const postgresqlOperators = [
     label: 'not match pattern, ignore case',
     description:
       'Matches text that does not match the supplied pattern, ignoring case. Use % for any number of characters and _ for one character.',
-    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text', 'field'] },
   },
   {
     id: 'IS TRUE' as const,

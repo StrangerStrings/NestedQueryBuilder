@@ -1,5 +1,5 @@
 import type { Expr } from 'pgsql-ast-parser'
-import type { ConditionValue, QueryCondition } from '../../../types/query'
+import type { ConditionValue, FieldModifier, QueryCondition } from '../../../types/query'
 import { createId } from '../../../utils/createId'
 import {
   normaliseConditionOperatorId,
@@ -15,6 +15,23 @@ export type ImportWhereConditionResult =
 
 type ImportConditionValueResult =
   { success: true; value: ConditionValue } | { success: false; error: ImportWhereError }
+
+const supportedFieldModifiers: readonly FieldModifier[] = [
+  'lower',
+  'upper',
+  'trim',
+  'ltrim',
+  'rtrim',
+  'initcap',
+  'reverse',
+  'length',
+  'abs',
+  'round',
+  'floor',
+  'ceil',
+  'trunc',
+  'sqrt',
+]
 
 // Convert homogeneous literals in order, retaining the offending SQL fragment on failure.
 function importConditionValue(
@@ -78,7 +95,7 @@ function importConditionValue(
   return { success: true, value }
 }
 
-// Resolve canonical operators before metadata-driven extraction, value conversion, and validation.
+// Resolve operators and values, then import a plain field or one supported modifier call.
 export function importWhereCondition(expression: Expr): ImportWhereConditionResult {
   let operatorId: string
 
@@ -148,18 +165,82 @@ export function importWhereCondition(expression: Expr): ImportWhereConditionResu
     }
   }
 
-  if (field.type !== 'ref') {
+  let reference = field
+  let modifier: FieldModifier | null = null
+  if (field.type === 'call') {
+    if (field.function.schema !== undefined) {
+      return {
+        success: false,
+        error: createImportWhereError(
+          'unsupported-expression',
+          `Unsupported schema-qualified field function: ${field.function.schema}.${field.function.name}.`,
+          field,
+        ),
+      }
+    }
+
+    const functionName = field.function.name.toLowerCase()
+    const supportedModifier = supportedFieldModifiers.find((candidate) => candidate === functionName)
+    if (!supportedModifier) {
+      return {
+        success: false,
+        error: createImportWhereError(
+          'unsupported-expression',
+          `Unsupported field modifier: ${field.function.name}.`,
+          field,
+        ),
+      }
+    }
+
+    const argument = field.args[0]
+    if (field.args.length !== 1 || !argument) {
+      return {
+        success: false,
+        error: createImportWhereError(
+          'unsupported-expression',
+          `Field modifier ${supportedModifier} requires exactly one column-reference argument.`,
+          field,
+        ),
+      }
+    }
+    if (field.distinct || field.orderBy || field.filter || field.withinGroup || field.over) {
+      return {
+        success: false,
+        error: createImportWhereError(
+          'unsupported-expression',
+          `Aggregate and window clauses are not supported for field modifier ${supportedModifier}.`,
+          field,
+        ),
+      }
+    }
+    if (argument.type !== 'ref') {
+      return {
+        success: false,
+        error: createImportWhereError(
+          'unsupported-expression',
+          argument.type === 'call'
+            ? `Nested field modifiers are not supported: ${supportedModifier}.`
+            : `Field modifier ${supportedModifier} requires a column reference; received ${argument.type}.`,
+          field,
+        ),
+      }
+    }
+    reference = argument
+    modifier = supportedModifier
+  }
+
+  if (reference.type !== 'ref') {
     return {
       success: false,
       error: createImportWhereError(
         'unsupported-expression',
-        `Unsupported field expression: ${field.type}.`,
+        `Unsupported field expression: ${reference.type}.`,
         field,
       ),
     }
   }
 
-  if (field.name === '*') {
+  if (reference.name === '*') {
     return {
       success: false,
       error: createImportWhereError(
@@ -170,12 +251,18 @@ export function importWhereCondition(expression: Expr): ImportWhereConditionResu
     }
   }
 
-  const fieldName = [field.table?.schema, field.table?.name, field.name]
+  const fieldName = [reference.table?.schema, reference.table?.name, reference.name]
     .filter((part) => part !== undefined)
     .join('.')
 
   return {
     success: true,
-    condition: { kind: 'condition', id: createId(), field: fieldName, operatorId, value },
+    condition: {
+      kind: 'condition',
+      id: createId(),
+      field: { name: fieldName, modifier },
+      operatorId,
+      value,
+    },
   }
 }

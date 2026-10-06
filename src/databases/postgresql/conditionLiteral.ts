@@ -1,4 +1,4 @@
-import type { DataTypeDef, Expr } from 'pgsql-ast-parser'
+import type { DataTypeDef, Expr, ExprRef } from 'pgsql-ast-parser'
 import type { ValueDataType } from '../../types/databaseOperator'
 import type { ConditionValue } from '../../types/query'
 import { isValidTemporal, type TemporalType } from '../../utils/temporalValue'
@@ -33,9 +33,20 @@ function isValidPostgresqlTemporal(value: string, type: TemporalType): boolean {
   return isValidTemporal(value, type) && (type === 'time' || !value.startsWith('0000-'))
 }
 
-// Import scalar literals and explicit local temporal casts without inference or coercion.
+// Import column references, scalar literals, and local temporal casts without coercion.
 export function importConditionLiteral(expression: Expr): ImportLiteralResult {
   switch (expression.type) {
+    case 'ref': {
+      const parts = [expression.table?.schema, expression.table?.name, expression.name]
+        .filter((part) => part !== undefined)
+      if (parts.some((part) => !part.trim() || part !== part.trim() || part === '*' || /[.()]/.test(part))) {
+        return { success: false, error: 'Unsupported field value: expected a plain or qualified column reference.' }
+      }
+      return {
+        success: true,
+        value: { hasValue: true, dataType: 'field', dataShape: 'single', value: parts.join('.') },
+      }
+    }
     case 'string':
       return {
         success: true,
@@ -81,14 +92,34 @@ export function importConditionLiteral(expression: Expr): ImportLiteralResult {
     default:
       return {
         success: false,
-        error: `Unsupported value expression: ${expression.type}. Expected a scalar literal or an explicit local temporal literal.`,
+        error: `Unsupported value expression: ${expression.type}. Expected a column reference, scalar literal, or explicit local temporal literal.`,
       }
   }
 }
 
-// Export one value with its exact declared type, including falsy values and local temporal casts.
+// Export typed values, constructing field references as AST nodes rather than raw SQL.
 export function exportConditionLiteral(dataType: ValueDataType, value: unknown): ExportLiteralResult {
   switch (dataType) {
+    case 'field': {
+      if (typeof value !== 'string' || !value.trim()) {
+        return { success: false, error: 'Incomplete condition: a field value is required.' }
+      }
+      const parts = value.trim().split('.').map((part) => part.trim())
+      const [name, tableName, columnName] = parts
+      if (!name || parts.length > 3 || parts.some((part) => !part || part === '*' || /[()]/.test(part))) {
+        return { success: false, error: `Unsupported field value reference: ${value}.` }
+      }
+      const reference: ExprRef = { type: 'ref', name }
+      if (tableName) {
+        reference.name = tableName
+        reference.table = { name }
+        if (columnName) {
+          reference.name = columnName
+          reference.table = { schema: name, name: tableName }
+        }
+      }
+      return { success: true, expression: reference }
+    }
     case 'text':
       if (typeof value !== 'string') {
         return { success: false, error: 'Text values must be strings.' }

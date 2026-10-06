@@ -1,4 +1,4 @@
-import { toSql, type Expr } from 'pgsql-ast-parser'
+import { toSql, type Expr, type ExprCall, type ExprRef } from 'pgsql-ast-parser'
 import { normaliseConditionOperatorId } from '../conditionHandling'
 import { postgresqlOperators } from '../operators'
 
@@ -39,7 +39,23 @@ function renderLiteral(expression: Expr): string {
   return toSql.expr(expression)
 }
 
-// Flatten matching logical chains and render recognised conditions, grouping all other shapes safely.
+// Recognise column references and a single function call whose sole argument is a column reference.
+function isEditorField(expression: Expr): expression is ExprRef | ExprCall {
+  return (
+    expression.type === 'ref' ||
+    (expression.type === 'call' &&
+      !expression.function.schema &&
+      expression.args.length === 1 &&
+      expression.args[0]?.type === 'ref')
+  )
+}
+
+// Use library escaping for plain and modified fields without unnecessary expression parentheses.
+function renderField(expression: ExprRef | ExprCall): string {
+  return expression.type === 'ref' ? toSql.ref(expression) : toSql.call(expression)
+}
+
+// Render logical chains and conditions, including column comparisons, grouping other shapes safely.
 function renderReadableExpression(expression: Expr, parentLogical?: 'AND' | 'OR'): string {
   if (expression.type === 'binary' && !expression.opSchema) {
     if (expression.op === 'AND' || expression.op === 'OR') {
@@ -61,9 +77,12 @@ function renderReadableExpression(expression: Expr, parentLogical?: 'AND' | 'OR'
     const kind = postgresqlOperators.find(
       (operator) => operator.id === normaliseConditionOperatorId(expression.op),
     )?.serialisation.kind
-    if (expression.type === 'binary' && expression.left.type === 'ref') {
+    if (expression.type === 'binary' && isEditorField(expression.left)) {
+      if (kind === 'comparison' && expression.right.type === 'ref') {
+        return `${renderField(expression.left)} ${expression.op} ${renderField(expression.right)}`
+      }
       if (kind === 'comparison' && isEditorLiteral(expression.right)) {
-        return `${toSql.ref(expression.left)} ${expression.op} ${renderLiteral(expression.right)}`
+        return `${renderField(expression.left)} ${expression.op} ${renderLiteral(expression.right)}`
       }
       if (
         kind === 'membership' &&
@@ -72,20 +91,20 @@ function renderReadableExpression(expression: Expr, parentLogical?: 'AND' | 'OR'
         expression.right.expressions.every(isEditorLiteral)
       ) {
         const values = expression.right.expressions.map(renderLiteral).join(', ')
-        return `${toSql.ref(expression.left)} ${expression.op} (${values})`
+        return `${renderField(expression.left)} ${expression.op} (${values})`
       }
     }
     if (
       kind === 'between' &&
       expression.type === 'ternary' &&
-      expression.value.type === 'ref' &&
+      isEditorField(expression.value) &&
       isEditorLiteral(expression.lo) &&
       isEditorLiteral(expression.hi)
     ) {
-      return `${toSql.ref(expression.value)} ${expression.op} ${renderLiteral(expression.lo)} AND ${renderLiteral(expression.hi)}`
+      return `${renderField(expression.value)} ${expression.op} ${renderLiteral(expression.lo)} AND ${renderLiteral(expression.hi)}`
     }
-    if (kind === 'unary' && expression.type === 'unary' && expression.operand.type === 'ref') {
-      return `${toSql.ref(expression.operand)} ${expression.op}`
+    if (kind === 'unary' && expression.type === 'unary' && isEditorField(expression.operand)) {
+      return `${renderField(expression.operand)} ${expression.op}`
     }
   }
 

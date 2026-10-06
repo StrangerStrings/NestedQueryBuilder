@@ -1,7 +1,7 @@
 type ValueDataShape = 'single' | 'list' | 'range'
 
 export type ValueDataType =
-  'text' | 'number' | 'boolean' | 'date' | 'time' | 'datetime' | 'duration'
+  'text' | 'number' | 'boolean' | 'date' | 'time' | 'datetime' | 'duration' | 'field'
 
 type ValueInput =
   | { hasValue: false }

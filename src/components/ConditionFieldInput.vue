@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { createId } from '../utils/createId'
+import type { ConditionField, FieldModifier } from '../types/query'
 
 const props = defineProps<{
-  modelValue: string
+  modelValue: ConditionField
   options: string[]
+  label?: string
+  hideLabel?: boolean
+  hideModifiers?: boolean
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: ConditionField]
 }>()
 
 const suggestionsOpen = ref(false)
@@ -16,11 +20,53 @@ const highlightedIndex = ref(-1)
 const optionsList = ref<HTMLUListElement | null>(null)
 const optionsId = `field-options-${createId()}`
 
-// Update the field and reopen suggestions when the user types.
+const modifierControlsVisible = ref(props.modelValue.modifier !== null)
+const modifierId = `field-modifier-${createId()}`
+const fieldModifiers: readonly FieldModifier[] = [
+  'lower',
+  'upper',
+  'trim',
+  'ltrim',
+  'rtrim',
+  'initcap',
+  'reverse',
+  'length',
+  'abs',
+  'round',
+  'floor',
+  'ceil',
+  'trunc',
+  'sqrt',
+]
+
+// Reveal modifiers applied by import; the parent's condition key resets visibility on selection.
+watch(() => props.modelValue.modifier, (modifier) => {
+  if (modifier !== null) modifierControlsVisible.value = true
+})
+
+// Hide and clear the modifier together; reopening starts with No Modifier.
+function toggleModifierControls() {
+  modifierControlsVisible.value = !modifierControlsVisible.value
+  if (!modifierControlsVisible.value) {
+    emit('update:modelValue', { ...props.modelValue, modifier: null })
+  }
+}
+
+// Apply one allowed modifier while preserving the underlying field name.
+function changeFieldModifier(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  const modifier = fieldModifiers.find((option) => option === value) ?? null
+  emit('update:modelValue', { ...props.modelValue, modifier })
+}
+
+// Update the field name without changing its modifier and reopen suggestions.
 function handleInput(event: Event) {
   suggestionsOpen.value = true
   highlightedIndex.value = -1
-  emit('update:modelValue', (event.target as HTMLInputElement).value)
+  emit('update:modelValue', {
+    ...props.modelValue,
+    name: (event.target as HTMLInputElement).value,
+  })
 }
 
 // Close suggestions and clear the previous keyboard highlight.
@@ -29,9 +75,9 @@ function closeSuggestions() {
   highlightedIndex.value = -1
 }
 
-// Apply a suggestion to the condition field and dismiss the dropdown.
+// Apply a field-name suggestion without changing its modifier and dismiss the dropdown.
 function selectOption(option: string) {
-  emit('update:modelValue', option)
+  emit('update:modelValue', { ...props.modelValue, name: option })
   closeSuggestions()
 }
 
@@ -65,10 +111,10 @@ async function moveHighlight(direction: 1 | -1) {
 
 // Match suggestions without regard to case, excluding only the exact input value.
 const filteredOptions = computed(() => {
-  const search = props.modelValue.toLowerCase()
+  const search = props.modelValue.name.toLowerCase()
   return props.options.filter((option) => {
     const field = option.toLowerCase()
-    return option !== props.modelValue && field.includes(search)
+    return option !== props.modelValue.name && field.includes(search)
   })
 })
 
@@ -79,56 +125,148 @@ watch(filteredOptions, () => {
 </script>
 
 <template>
-  <div class="field-autocomplete">
-    <label class="field-input">
-      <span>Field</span>
-      <input
-        :value="modelValue"
-        type="text"
-        aria-label="Field"
-        role="combobox"
-        aria-autocomplete="list"
-        :aria-expanded="suggestionsOpen && filteredOptions.length > 0"
-        :aria-controls="suggestionsOpen && filteredOptions.length ? optionsId : undefined"
-        :aria-activedescendant="
-          suggestionsOpen && highlightedIndex >= 0 ? `${optionsId}-${highlightedIndex}` : undefined
-        "
-        @focus="suggestionsOpen = true"
-        @input="handleInput"
-        @blur="closeSuggestions"
-        @keydown.esc="closeSuggestions"
-        @keydown.down.prevent="moveHighlight(1)"
-        @keydown.up.prevent="moveHighlight(-1)"
-        @keydown.enter="handleEnter"
-      />
-    </label>
-    <ul
-      v-if="suggestionsOpen && filteredOptions.length"
-      :id="optionsId"
-      ref="optionsList"
-      role="listbox"
-      class="field-options"
-      aria-label="Matching fields"
-    >
-      <li
-        v-for="(option, index) in filteredOptions"
-        :id="`${optionsId}-${index}`"
-        :key="option"
-        role="option"
-        :aria-selected="index === highlightedIndex"
-        :class="{ highlighted: index === highlightedIndex }"
-        @mousedown.prevent
-        @click="selectOption(option)"
+  <div class="condition-field-input">
+    <div class="field-input-row">
+      <div class="field-autocomplete">
+        <label class="field-input">
+          <span v-if="!hideLabel">{{ label ?? 'Field' }}</span>
+          <input
+            :value="modelValue.name"
+            type="text"
+            :aria-label="label ?? 'Field'"
+            role="combobox"
+            aria-autocomplete="list"
+            :aria-expanded="suggestionsOpen && filteredOptions.length > 0"
+            :aria-controls="suggestionsOpen && filteredOptions.length ? optionsId : undefined"
+            :aria-activedescendant="
+              suggestionsOpen && highlightedIndex >= 0 ? `${optionsId}-${highlightedIndex}` : undefined
+            "
+            @focus="suggestionsOpen = true"
+            @input="handleInput"
+            @blur="closeSuggestions"
+            @keydown.esc="closeSuggestions"
+            @keydown.down.prevent="moveHighlight(1)"
+            @keydown.up.prevent="moveHighlight(-1)"
+            @keydown.enter="handleEnter"
+          />
+        </label>
+        <ul
+          v-if="suggestionsOpen && filteredOptions.length"
+          :id="optionsId"
+          ref="optionsList"
+          role="listbox"
+          class="field-options"
+          aria-label="Matching fields"
+        >
+          <li
+            v-for="(option, index) in filteredOptions"
+            :id="`${optionsId}-${index}`"
+            :key="option"
+            role="option"
+            :aria-selected="index === highlightedIndex"
+            :class="{ highlighted: index === highlightedIndex }"
+            @mousedown.prevent
+            @click="selectOption(option)"
+          >
+            {{ option }}
+          </li>
+        </ul>
+      </div>
+      <button
+        v-if="!hideModifiers"
+        type="button"
+        class="field-modifier-toggle"
+        :class="{ 'has-modifier': modifierControlsVisible || modelValue.modifier !== null }"
+        aria-label="Field modifier"
+        title="Field modifier"
+        :aria-expanded="modifierControlsVisible"
+        :aria-controls="modifierId"
+        @click="toggleModifierControls"
       >
-        {{ option }}
-      </li>
-    </ul>
+        <span class="material-symbols-outlined" aria-hidden="true">functions</span>
+      </button>
+    </div>
+    <label v-if="!hideModifiers" v-show="modifierControlsVisible" class="field-modifier-input">
+      <select
+        :id="modifierId"
+        :value="modelValue.modifier ?? ''"
+        aria-label="Field modifier"
+        @change="changeFieldModifier"
+      >
+        <option value="">No Modifier</option>
+        <option v-for="modifier in fieldModifiers" :key="modifier" :value="modifier">
+          {{ modifier }}
+        </option>
+      </select>
+    </label>
   </div>
 </template>
 
 <style scoped>
+.condition-field-input {
+  margin-top: 0.5rem;
+}
+
+.field-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.field-modifier-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0.45rem;
+  border: 0;
+  border-radius: 4px;
+}
+
+.field-modifier-toggle:hover {
+  background: #f3f6fa;
+}
+
+.field-modifier-toggle.has-modifier {
+  background: #e8eef9;
+}
+
+.field-modifier-toggle:focus-visible {
+  outline: 2px solid #172033;
+  outline-offset: 2px;
+}
+
+.field-modifier-input {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  color: #172033;
+  font-size: 0.875rem;
+}
+
+.field-modifier-input select {
+  min-width: 0;
+  width: 100%;
+  padding: 0.45rem;
+  border: 1px solid #c5ccd8;
+  border-radius: 4px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+.field-modifier-toggle .material-symbols-outlined {
+  font-size: 1.25rem;
+}
+
 .field-autocomplete {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .field-input {

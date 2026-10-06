@@ -65,7 +65,7 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
 .condition-operator {
   display: grid;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: 2rem;
   color: #172033;
   font-size: 0.875rem;
 }

@@ -4,10 +4,12 @@ import type { DatabaseOperator, ValueDataType } from '../../types/databaseOperat
 import type { ConditionValue } from '../../types/query'
 import ConditionScalarInput from './ConditionScalarInput.vue'
 import ConditionListInput from './ConditionListInput.vue'
+import ConditionFieldInput from '../ConditionFieldInput.vue'
 
 const props = defineProps<{
   operator: DatabaseOperator
   modelValue: ConditionValue
+  fieldOptions: string[]
 }>()
 
 const emit = defineEmits<{
@@ -15,7 +17,7 @@ const emit = defineEmits<{
   'type-change': [dataType: ValueDataType]
 }>()
 
-const typeLabels = { text: 'Text', number: 'Number', boolean: 'Boolean' }
+const typeLabels = { text: 'Text', number: 'Number', boolean: 'Boolean', field: 'Field' }
 const temporalOptions = [
   { type: 'date', label: 'Date', icon: 'calendar_month' },
   { type: 'time', label: 'Time', icon: 'schedule' },
@@ -27,13 +29,13 @@ const temporalTrigger = ref<HTMLButtonElement | null>(null)
 const temporalMenu = ref<HTMLElement | null>(null)
 const temporalMenuId = useId()
 
-const typeIcons = { text: 'text_fields', number: '123', boolean: 'check_circle' }
+const typeIcons = { text: 'text_fields', number: '123', boolean: 'check_circle', field: 'view_column' }
 
-// Preserve the operator's ordering while excluding types without controls.
+// Include field references alongside the operator's supported literal controls.
 const supportedTypes = computed(() => {
   const input = props.operator.valueInput
   return input.hasValue
-    ? input.dataTypes.filter((type) => type === 'text' || type === 'number' || type === 'boolean')
+    ? input.dataTypes.filter((type) => type === 'text' || type === 'number' || type === 'boolean' || type === 'field')
     : []
 })
 
@@ -142,13 +144,13 @@ function changeType(selected: ValueDataType) {
   if (temporalOpen.value) closeTemporal(true)
 }
 
-// Edit single values or range endpoints; the list editor owns list edits.
+// Edit field names, literal values, or range endpoints; the list editor owns list edits.
 function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
   const current = selectedValue.value
   if (!current || current.dataShape === 'list') return
 
   if (
-    (current.dataType === 'text' || current.dataType === 'date' ||
+    (current.dataType === 'field' || current.dataType === 'text' || current.dataType === 'date' ||
       current.dataType === 'time' || current.dataType === 'datetime') &&
     typeof value === 'string'
   ) {
@@ -249,8 +251,18 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
         </div>
       </div>
     </div>
+    <ConditionFieldInput
+      v-if="selectedValue.dataType === 'field' && selectedValue.dataShape === 'single'"
+      class="field-value-input"
+      :model-value="{ name: selectedValue.value, modifier: null }"
+      :options="fieldOptions"
+      label="Field value"
+      hide-label
+      hide-modifiers
+      @update:model-value="editValue($event.name)"
+    />
     <ConditionScalarInput
-      v-if="selectedValue.dataShape === 'single'"
+      v-else-if="selectedValue.dataType !== 'field' && selectedValue.dataShape === 'single'"
       :key="`${selectedValue.dataType}-single`"
       :data-type="selectedValue.dataType"
       :model-value="selectedValue.value"
@@ -259,7 +271,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
       @update:model-value="editValue($event)"
     />
     <div
-      v-else-if="selectedValue.dataShape === 'range'"
+      v-else-if="selectedValue.dataType !== 'field' && selectedValue.dataShape === 'range'"
       :key="`${selectedValue.dataType}-range`"
       class="value-range"
     >
@@ -277,7 +289,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
       />
     </div>
     <ConditionListInput
-      v-else
+      v-else-if="selectedValue.dataType !== 'field'"
       :key="`${selectedValue.dataType}-list`"
       :model-value="selectedValue"
       @update:model-value="emit('update:modelValue', $event)"
@@ -289,7 +301,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
 .condition-value-input {
   display: grid;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: 2rem;
   color: #172033;
   font-size: 0.875rem;
 }
@@ -298,6 +310,10 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
   margin: 0;
   font-size: inherit;
   font-weight: normal;
+}
+
+.field-value-input {
+  margin-top: 0;
 }
 
 .value-types {
