@@ -1,4 +1,4 @@
-import type { Expr } from 'pgsql-ast-parser'
+import { toSql, type Expr } from 'pgsql-ast-parser'
 import type { QueryGroup, QueryNode } from '../../../types/query'
 import { createId } from '../../../utils/createId'
 import { importWhereCondition } from './importWhereCondition'
@@ -11,9 +11,13 @@ export type ImportWhereResult =
 type ImportWhereNodeResult =
   { success: true; node: QueryNode } | { success: false; error: ImportWhereError }
 
-// Flatten matching logical groups and ANY operands of NOT, preserving meaning and atomic errors.
+// Preserve logical groups and import unsupported conditions as complete raw SQL expressions.
 function importWhereNode(expression: Expr): ImportWhereNodeResult {
-  if (expression.type === 'binary' && (expression.op === 'AND' || expression.op === 'OR')) {
+  if (
+    expression.type === 'binary' &&
+    !expression.opSchema &&
+    (expression.op === 'AND' || expression.op === 'OR')
+  ) {
     const left = importWhereNode(expression.left)
     if (!left.success) return left
 
@@ -41,7 +45,7 @@ function importWhereNode(expression: Expr): ImportWhereNodeResult {
     }
   }
 
-  if (expression.type === 'unary' && expression.op === 'NOT') {
+  if (expression.type === 'unary' && !expression.opSchema && expression.op === 'NOT') {
     const operand = importWhereNode(expression.operand)
     if (!operand.success) return operand
 
@@ -57,9 +61,24 @@ function importWhereNode(expression: Expr): ImportWhereNodeResult {
   }
 
   const result = importWhereCondition(expression)
-  if (!result.success) return result
+  if (result.success) return { success: true, node: result.condition }
 
-  return { success: true, node: result.condition }
+  try {
+    return {
+      success: true,
+      node: {
+        kind: 'condition',
+        id: createId(),
+        rawSql: toSql.expr(expression),
+        field: { name: '', modifier: null },
+        operatorId: '',
+        value: { hasValue: false },
+      },
+    }
+  } catch {
+    // Keep the conversion error if the parser cannot serialize the complete condition safely.
+    return result
+  }
 }
 
 // Return a complete group root or a conversion error for the parsed filter.

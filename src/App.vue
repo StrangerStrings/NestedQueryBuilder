@@ -40,7 +40,7 @@ const activeTab = ref<Tab>('builder')
 .app-shell {
   min-height: 100vh;
   color: #172033;
-  background: #f7f8fa;
+  background: white;
   font-family: inherit;
 }
 

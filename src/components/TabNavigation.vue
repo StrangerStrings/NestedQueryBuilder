@@ -52,6 +52,7 @@ const emit = defineEmits<{
   grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
   flex: 1;
   padding: 0 1.5rem;
+  background: #ebebf3;
 }
 
 .tab-group {
