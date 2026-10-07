@@ -13,6 +13,7 @@ const props = defineProps<{
 
 const queryStore = useQueryStore()
 const settingsStore = useSettingsStore()
+
 // Resolve operator metadata for the display label and operator validation.
 const operator = computed(() =>
   queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
@@ -90,6 +91,16 @@ const emit = defineEmits<{
     @click="editable && emit('select', condition)"
   >
     <button
+      v-if="editable && settingsStore.dragAndDropMode"
+      type="button"
+      class="condition-drag-handle"
+      aria-label="Drag to reorder condition"
+      title="Drag to reorder condition"
+      @click.stop
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span>
+    </button>
+    <button
       type="button"
       class="condition-content"
       :disabled="!editable"
@@ -148,6 +159,31 @@ const emit = defineEmits<{
 
 .query-condition.is-editable {
   cursor: pointer;
+}
+
+.condition-drag-handle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #5b6472;
+  cursor: grab;
+}
+
+.condition-drag-handle:active {
+  cursor: grabbing;
+}
+
+.condition-drag-handle:focus-visible {
+  outline: 2px solid #172033;
+  outline-offset: 2px;
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .query-condition.is-selected::before,

@@ -2,11 +2,13 @@
 import { computed, ref, watch } from 'vue'
 
 import { useQueryStore } from '../stores/queryStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import type { QueryCondition, QueryGroup as QueryGroupModel } from '../types/query'
 import ConditionPanel from './ConditionPanel.vue'
 import QueryGroup from './QueryGroup.vue'
 
 const queryStore = useQueryStore()
+const settingsStore = useSettingsStore()
 const selectedConditionId = ref<string | null>(null)
 
 // Drop selection immediately when the query root is replaced by a switch or import.
@@ -38,6 +40,11 @@ function selectCondition(condition: QueryCondition) {
 function closeConditionPanel() {
   selectedConditionId.value = null
 }
+
+// Toggle the saved mode flag for future drag-and-drop behaviour.
+function toggleDragAndDropMode() {
+  settingsStore.dragAndDropMode = !settingsStore.dragAndDropMode
+}
 </script>
 
 <template>
@@ -61,6 +68,16 @@ function closeConditionPanel() {
         />
       </Transition>
     </div>
+    <button
+      type="button"
+      class="drag-pan-icon"
+      aria-label="Drag Pan"
+      :aria-pressed="settingsStore.dragAndDropMode"
+      title="Drag Pan"
+      @click="toggleDragAndDropMode"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true" title="Toggle drag and drop">drag_pan</span>
+    </button>
   </section>
 </template>
 
@@ -79,5 +96,27 @@ function closeConditionPanel() {
 .conditions {
   display: grid;
   gap: 0.5rem;
+}
+
+.drag-pan-icon {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: white;
+  color: #5b6472;
+  cursor: pointer;
+}
+
+.drag-pan-icon[aria-pressed='false'] {
+  color: #a8b0bc;
 }
 </style>

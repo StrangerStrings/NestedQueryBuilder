@@ -10,6 +10,7 @@ import {
 } from '../colours/fieldColours'
 import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
+import { findGroupById } from '../utils/queryTree'
 import { convertConditionValue } from '../utils/convertConditionValue'
 import type { DatabaseAdapter, FilterImportResult, SchemaImportResult, SqlResult } from '../types/databaseAdapter'
 import type { DatabaseId } from '../databases/DatabaseDefinitions'
@@ -154,22 +155,6 @@ function createEmptyQuery(): QueryGroup {
   return { kind: 'group', id: createId(), mode: 'all', children: [] }
 }
 
-function findGroupById(group: QueryGroup, groupId: string): QueryGroup | undefined {
-  if (group.id === groupId) {
-    return group
-  }
-
-  for (const child of group.children) {
-    if (child.kind === 'group') {
-      const nestedGroup = findGroupById(child, groupId)
-
-      if (nestedGroup) {
-        return nestedGroup
-      }
-    }
-  }
-}
-
 function removeNodeFromGroup(group: QueryGroup, nodeId: string): boolean {
   const childIndex = group.children.findIndex((child) => child.id === nodeId)
 
@@ -215,6 +200,7 @@ export const useQueryStore = defineStore('query', () => {
   const database = ref<DatabaseId>('postgresql')
   const schemaFields = ref<string[]>([])
   const query = ref<QueryGroup>(createInitialQuery())
+
   // Resolve capabilities and SQL operations from the active database adapter.
   const adapter = computed<DatabaseAdapter>(() => databaseDefinitions[database.value])
   const operators = computed(() => adapter.value.operators)
@@ -384,6 +370,66 @@ export const useQueryStore = defineStore('query', () => {
     }
   }
 
+  // Move a direct child to an original-array boundary (0..length), not a final index.
+  function moveNode(
+    parentGroupId: string,
+    nodeId: string,
+    insertionIndex: number,
+  ): boolean {
+    const parent = findGroupById(query.value, parentGroupId)
+    if (
+      !parent ||
+      nodeId === query.value.id ||
+      !Number.isInteger(insertionIndex) ||
+      insertionIndex < 0 ||
+      insertionIndex > parent.children.length
+    ) return false
+
+    const nodeIndex = parent.children.findIndex((child) => child.id === nodeId)
+    const node = parent.children[nodeIndex]
+    if (!node) return false
+
+    if (insertionIndex === nodeIndex || insertionIndex === nodeIndex + 1) return true
+
+    // Removing the source shifts later boundaries left by one; retain the original node.
+    const destinationIndex = insertionIndex > nodeIndex ? insertionIndex - 1 : insertionIndex
+    parent.children.splice(nodeIndex, 1)
+    parent.children.splice(destinationIndex, 0, node)
+    return true
+  }
+
+  // Transfer a direct child condition to a pre-mutation boundary, preserving its identity.
+  function transferCondition(
+    sourceGroupId: string,
+    destinationGroupId: string,
+    conditionId: string,
+    insertionIndex: number,
+  ): boolean {
+    const source = findGroupById(query.value, sourceGroupId)
+    const destination = findGroupById(query.value, destinationGroupId)
+    if (
+      !source ||
+      !destination ||
+      !Number.isInteger(insertionIndex) ||
+      insertionIndex < 0 ||
+      insertionIndex > destination.children.length
+    ) return false
+
+    const conditionIndex = source.children.findIndex(
+      (child) => child.kind === 'condition' && child.id === conditionId,
+    )
+    const condition = source.children[conditionIndex]
+    if (!condition || condition.kind !== 'condition') return false
+
+    if (source === destination) {
+      return moveNode(sourceGroupId, conditionId, insertionIndex)
+    }
+
+    source.children.splice(conditionIndex, 1)
+    destination.children.splice(insertionIndex, 0, condition)
+    return true
+  }
+
   // Add a group and return its initial condition so the editor can select it.
   function addGroup(groupId: string) {
     const group = findGroupById(query.value, groupId)
@@ -441,6 +487,8 @@ export const useQueryStore = defineStore('query', () => {
     cycleGroupMode,
     createCondition,
     addCondition,
+    moveNode,
+    transferCondition,
     addGroup,
     removeNode,
   }
