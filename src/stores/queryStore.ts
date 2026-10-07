@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import type { ConditionValue, QueryCondition, QueryGroup } from '../types/query'
 import type { DatabaseOperator, ValueDataType } from '../types/databaseOperator'
-import { databaseDefinitions } from '../databases/databases'
+import { databaseDefinitions } from '../databases/DatabaseDefinitions'
 import {
   assignFieldColours,
   assignConditionColours,
@@ -12,8 +12,8 @@ import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
 import { convertConditionValue } from '../utils/convertConditionValue'
 import type { DatabaseAdapter, FilterImportResult, SchemaImportResult, SqlResult } from '../types/databaseAdapter'
-import type { DatabaseId } from '../databases/databases'
-export type { DatabaseId } from '../databases/databases'
+import type { DatabaseId } from '../databases/DatabaseDefinitions'
+export type { DatabaseId } from '../databases/DatabaseDefinitions'
 
 // Allow the literal and field types implemented by the shared converter.
 function isSupportedValueType(

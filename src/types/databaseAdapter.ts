@@ -17,7 +17,7 @@ export interface DatabaseAdapter {
   id: string
   label: string
   sql?: {
-    formatterDialect: 'postgresql' | 'mysql'
+    formatterDialect: 'postgresql' | 'mysql' | 'mariadb'
     highlightLanguage: 'sql'
     helpText?: string
     importHelpText?: string

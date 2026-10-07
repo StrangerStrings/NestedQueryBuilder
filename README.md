@@ -4,7 +4,7 @@ A visual query builder built with Vue 3, Vite, TypeScript, and Pinia.
 
 ## Database targets
 
-PostgreSQL retains visual filter building, WHERE SQL export, SQL filter import (including raw expressions), and CREATE TABLE schema import. MySQL 8.4 supports visual filter building, WHERE SQL export, SQL filter import with validated opaque raw expressions, and CREATE TABLE schema import for field suggestions. Elasticsearch remains a placeholder.
+PostgreSQL retains visual filter building, WHERE SQL export, SQL filter import (including raw expressions), and CREATE TABLE schema import. MySQL 8.4 supports visual filter building, WHERE SQL export, SQL filter import with validated opaque raw expressions, and CREATE TABLE schema import for field suggestions. MariaDB 11.4 LTS supports the same workflows within its documented compatible syntax subset. Elasticsearch remains a placeholder.
 
 The query tree and grouping UI are shared. Database adapters supply operators, WHERE and condition SQL generation, and optional filter/schema import and raw-condition parsing capabilities. The store and previews use the selected adapter.
 
@@ -14,7 +14,7 @@ MySQL import uses a separate MySQL-aware parser, assuming ANSI_QUOTES, NO_BACKSL
 
 Schema import accepts explicit CREATE TABLE definitions, extracts only column names, and replaces suggestions only after the whole schema succeeds. One distinct table yields plain column suggestions; multiple tables yield qualified suggestions. MySQL stores raw identifier names and quotes them on SQL export. Schema imports leave the current query intact.
 
-The explicit MySQL operator and modifier capabilities are documented in [MySQL capabilities](docs/mysql-capabilities.md).
+The explicit MySQL operator and modifier capabilities are documented in [MySQL capabilities](docs/mysql-capabilities.md). MariaDB syntax boundaries, SQL-mode assumptions and schema options are documented in [MariaDB capabilities](docs/mariadb-capabilities.md).
 
 Choose the target in Databases; switching resets the query and schema suggestions.
 

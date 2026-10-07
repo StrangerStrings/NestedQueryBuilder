@@ -19,7 +19,7 @@ const settingsStore = useSettingsStore()
             name="operators-display"
             :value="false"
           />
-          {{ queryStore.database }}
+          {{ queryStore.adapter.label }} ID
         </label>
         <label>
           <input

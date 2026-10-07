@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useQueryStore } from './stores/queryStore'
-import { databaseDefinitions, type DatabaseId } from './databases/databases'
+import { databaseDefinitions, type DatabaseId } from './databases/DatabaseDefinitions.ts'
 
 import QueryBuilder from './components/QueryBuilder.vue'
 import QueryPreview from './components/QueryPreview.vue'
