@@ -16,7 +16,7 @@ const formattedSql = computed(() => {
   if (!result.success || !result.sql) return ''
 
   try {
-    return format(result.sql, { language: queryStore.adapter.sql?.formatterDialect ?? 'sql' })
+    return format(result.sql, { language: queryStore.adapter.queryFormat.formatterDialect })
   } catch {
     return result.sql
   }
@@ -39,7 +39,7 @@ async function copySql() {
   const revision = previewRevision
   const database = queryStore.database
   const sql = formattedSql.value
-  if (copying.value || !queryStore.adapter.sql || !sql || !queryStore.whereSqlResult.success) return
+  if (copying.value || !sql || !queryStore.whereSqlResult.success) return
 
   copying.value = true
   copyStatus.value = ''
@@ -62,7 +62,7 @@ async function copySql() {
 
 <template>
   <section aria-label="Query output">
-    <div v-if="queryStore.adapter.sql" class="sql-preview">
+    <div class="sql-preview">
       <div class="sql-preview-header">
         <span>Generated {{ queryStore.adapter.label }}</span>
       </div>
@@ -70,7 +70,7 @@ async function copySql() {
         v-if="queryStore.whereSqlResult.success"
         class="sql-output"
         :query-text="formattedSql"
-        :language="queryStore.adapter.sql.highlightLanguage"
+        :language="queryStore.adapter.queryFormat.highlightLanguage"
         :accessible-label="`Generated ${queryStore.adapter.label} SQL`"
       />
       <p v-else class="generation-error" role="alert">
@@ -83,7 +83,7 @@ async function copySql() {
         :disabled="copying || !queryStore.whereSqlResult.success || !formattedSql"
         @click="copySql"
       >
-        {{ copying ? 'Copying…' : 'Copy SQL' }}
+        {{ copying ? 'Copying…' : 'Copy Query' }}
       </button>
       <p
         :id="copyStatusId"
@@ -105,12 +105,11 @@ async function copySql() {
 <style scoped>
 .sql-preview button {
   justify-self: start;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #c5ccd8;
-  border-radius: 4px;
-  background: #fff;
-  color: #172033;
-  font: inherit;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d9dee7;
+  border-radius: 0.375rem;
+  color: #5b6472;
+  background: #ffffff;
   cursor: pointer;
 }
 
@@ -140,8 +139,7 @@ async function copySql() {
 }
 
 .sql-preview button:disabled {
-  opacity: 0.5;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .sql-preview button:focus-visible {

@@ -15,6 +15,5 @@ export type DatabaseOperator = {
   id: string
   label: string
   description: string
-  helpText?: string
   valueInput: ValueInput
 }

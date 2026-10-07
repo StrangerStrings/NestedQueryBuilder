@@ -16,13 +16,17 @@ export type SchemaImportResult =
 export interface DatabaseAdapter {
   id: string
   label: string
-  sql?: {
+  version: string
+  icon: string
+  queryFormat: {
     formatterDialect: 'postgresql' | 'mysql' | 'mariadb'
-    highlightLanguage: 'sql'
-    helpText?: string
-    importHelpText?: string
-    schemaExample?: string
-    schemaHelpText?: string
+    highlightLanguage: 'sql' | 'json'
+  }
+  helpText?: {
+    schemaHelp: string
+    schemaPlaceholder: string
+    queryHelp: string
+    queryPlaceholder: string
   }
   /** Keep the existing unavailable-feature views for placeholder targets. */
   placeholder?: boolean

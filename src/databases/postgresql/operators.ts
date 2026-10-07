@@ -7,9 +7,6 @@ type PostgresqlOperatorDefinition = DatabaseOperator & {
   serialisation: { kind: PostgresqlOperatorKind }
 }
 
-const postgresqlPatternHelp =
-  'Patterns are used as entered; no wildcards are added or escaped. PostgreSQL defaults to backslash pattern escaping: use \\% or \\_ for literal wildcards and two backslashes for one. SQL literal quoting is separate; the exporter uses escape-string literals for backslashes.'
-
 export const postgresqlOperators = [
   {
     id: '=' as const,
@@ -155,7 +152,6 @@ export const postgresqlOperators = [
     label: 'matches pattern',
     description:
       'Matches the whole text using a SQL pattern: % matches zero or more characters and _ matches one character. Unlike ILIKE, LIKE does not request locale-based case folding.',
-    helpText: postgresqlPatternHelp,
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text', 'field'] },
   },
   {
@@ -165,7 +161,6 @@ export const postgresqlOperators = [
     label: 'not match pattern',
     description:
       'Excludes whole-text matches of a SQL pattern: % matches zero or more characters and _ matches one character. Unlike NOT ILIKE, NOT LIKE does not request locale-based case folding. NULL fields do not match. Include NULL explicitly with IS NULL in an any group.',
-    helpText: postgresqlPatternHelp,
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text', 'field'] },
   },
   {
@@ -175,7 +170,6 @@ export const postgresqlOperators = [
     label: 'matches pattern, ignore case',
     description:
       'Matches the whole text using a SQL pattern, ignoring case according to the active PostgreSQL locale. % matches zero or more characters and _ matches one character.',
-    helpText: postgresqlPatternHelp,
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text', 'field'] },
   },
   {
@@ -185,7 +179,6 @@ export const postgresqlOperators = [
     label: 'not match pattern, ignore case',
     description:
       'Excludes whole-text matches of a SQL pattern, ignoring case according to the active PostgreSQL locale. % matches zero or more characters and _ matches one character. NULL fields do not match. Include NULL explicitly with IS NULL in an any group.',
-    helpText: postgresqlPatternHelp,
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text', 'field'] },
   },
   {

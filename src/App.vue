@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useQueryStore } from './stores/queryStore'
-import { databaseDefinitions, type DatabaseId } from './databases/DatabaseDefinitions.ts'
 
 import QueryBuilder from './components/QueryBuilder.vue'
 import QueryPreview from './components/QueryPreview.vue'
@@ -9,16 +8,12 @@ import QueryImport from './components/QueryImport.vue'
 import TabNavigation from './components/TabNavigation.vue'
 import SchemaImport from './components/SchemaImport.vue'
 import SettingsPage from './components/SettingsPage.vue'
+import DatabaseList from './components/DatabaseList.vue'
 
 type Tab = 'builder' | 'output' | 'import' | 'schema' | 'databases' | 'settings'
 
 const activeTab = ref<Tab>('builder')
 const queryStore = useQueryStore()
-
-// Switch the shared builder to the selected database target.
-function selectDatabase(event: Event) {
-  queryStore.changeDatabase((event.target as HTMLSelectElement).value as DatabaseId)
-}
 
 // Guard navigation entry points using the same capabilities as the visible tabs.
 function selectTab(tab: Tab) {
@@ -61,18 +56,7 @@ watch(
         :key="`schema-${queryStore.database}`"
         v-show="activeTab === 'schema'"
       />
-      <section v-if="activeTab === 'databases'" aria-label="Databases">
-        <h2>Databases</h2>
-        <label for="database-target">Database target</label>
-        <select id="database-target" :value="queryStore.database" @change="selectDatabase">
-          <option v-for="(definition, id) in databaseDefinitions" :key="id" :value="id">
-            {{ definition.label }}
-          </option>
-        </select>
-        <p v-if="queryStore.adapter.sql?.helpText">
-          {{ queryStore.adapter.label }}: {{ queryStore.adapter.sql.helpText }}
-        </p>
-      </section>
+      <DatabaseList v-if="activeTab === 'databases'" />
       <SettingsPage v-if="activeTab === 'settings'" />
     </main>
   </div>

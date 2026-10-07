@@ -26,20 +26,19 @@ const selectedOperator = computed(() =>
 
 // Render only the selected condition with the same validation and SQL formatting as the query preview.
 const conditionSql = computed(() => {
-  if (!queryStore.adapter.sql) return null
   return queryStore.adapter.generateConditionSql(props.condition)
 })
 
 // Display validation for the current raw condition.
 const rawError = computed(() => {
   const sql = conditionSql.value
-  return props.condition.rawSql !== undefined && sql && !sql.success ? sql.error : null
+  return props.condition.rawSql !== undefined && !sql.success ? sql.error : null
 })
 
 // Show generation or editor-conversion errors beneath the current query.
 const previewError = computed(() => {
   const sql = conditionSql.value
-  return sql && !sql.success ? sql.error : editorError.value
+  return !sql.success ? sql.error : editorError.value
 })
 
 // Clear conversion feedback when another condition is selected.
@@ -56,7 +55,7 @@ watch(
 function openRawEditor() {
   if (!queryStore.adapter.parseRawCondition || editingMode.value === 'raw') return
   const sql = conditionSql.value
-  queryStore.updateCondition(props.condition.id, { rawSql: sql?.success ? sql.sql : '' })
+  queryStore.updateCondition(props.condition.id, { rawSql: sql.success ? sql.sql : '' })
   editorError.value = null
 }
 
@@ -143,9 +142,8 @@ const emit = defineEmits<{
         placeholder="status = 'online'"
         :spellcheck="false"
         :aria-invalid="!!rawError"
-        :aria-describedby="[queryStore.adapter.sql?.importHelpText ? `${rawConditionId}-help` : null, previewError ? `${rawConditionId}-error` : null].filter(Boolean).join(' ') || undefined"
+        :aria-describedby="previewError ? `${rawConditionId}-error` : undefined"
       />
-      <p v-if="queryStore.adapter.sql?.importHelpText" :id="`${rawConditionId}-help`">{{ queryStore.adapter.sql.importHelpText }}</p>
     </div>
     <template v-else>
       <ConditionFieldInput
@@ -170,14 +168,14 @@ const emit = defineEmits<{
         :operator="selectedOperator"
       />
     </template>
-    <section v-if="conditionSql" class="condition-preview" aria-label="Condition SQL preview">
+    <section class="condition-preview" aria-label="Condition SQL preview">
       <h4>Generated {{ queryStore.adapter.label }}</h4>
       <div aria-live="polite" aria-atomic="true">
         <QueryDisplay
           v-if="conditionSql.success || condition.rawSql !== undefined"
           class="condition-sql"
           :query-text="conditionSql.success ? conditionSql.sql : condition.rawSql ?? ''"
-          :language="queryStore.adapter.sql?.highlightLanguage ?? 'sql'"
+          :language="queryStore.adapter.queryFormat.highlightLanguage"
           :accessible-label="`Generated ${queryStore.adapter.label} condition`"
         />
         <details

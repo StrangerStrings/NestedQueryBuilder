@@ -1,4 +1,5 @@
 import type { DatabaseAdapter } from '../../types/databaseAdapter'
+import mariadbIcon from '../../assets/databases/mariadb.svg'
 import { mariadbOperators } from './operators'
 import { mariadbFieldModifiers } from './modifiers'
 import { generateMariadbConditionSql } from './serialisation/generateConditionSql'
@@ -8,14 +9,18 @@ import { importMariadbSchema } from './schema/importSchema'
 
 export const mariadbAdapter: DatabaseAdapter = {
   id: 'mariadb',
-  label: 'MariaDB 11.4 LTS',
-  sql: {
+  label: 'MariaDB',
+  version: '11.4 LTS',
+  icon: mariadbIcon,
+  queryFormat: {
     formatterDialect: 'mariadb',
     highlightLanguage: 'sql',
-    helpText: 'Build or import MariaDB 11.4 LTS filters and export WHERE SQL. Import CREATE TABLE statements for field suggestions. Use normal MariaDB mode with ORACLE and EMPTY_STRING_IS_NULL disabled. Text comparisons follow the applicable column collation. Output uses explicit backslash LIKE escaping in both NO_BACKSLASH_ESCAPES modes. Use a utf8mb4 client connection for non-ASCII identifiers.',
-    schemaExample: 'CREATE TABLE `users` (\n  `id` BIGINT PRIMARY KEY,\n  `status` VARCHAR(32) NOT NULL,\n  `deleted_at` DATETIME\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;',
-    schemaHelpText: 'Use explicit CREATE TABLE column definitions and backticks for quoted identifiers. One distinct table gives plain column suggestions; multiple tables give qualified suggestions. Literal dots and surrounding whitespace in names cannot be represented. Import uses the same SQL-mode assumptions as filter import. Unsupported schema clauses, expressions, charsets and collations are rejected.',
-    importHelpText: 'Import assumes MariaDB 11.4 LTS with ANSI_QUOTES, NO_BACKSLASH_ESCAPES, HIGH_NOT_PRECEDENCE, PIPES_AS_CONCAT, ORACLE, and EMPTY_STRING_IS_NULL disabled. Use backticks for identifiers. Only the established compatible filter subset is accepted; other syntax is rejected. Supported expressions that cannot be edited visually stay in Raw mode when safe. Raw strings must use single quotes with doubled apostrophes or UTF-8 hex text; raw LIKE requires explicit ESCAPE. Executable comments and optimizer hints are rejected.',
+  },
+  helpText: {
+    schemaHelp: 'Paste MariaDB 11.4 LTS CREATE TABLE statements with explicit column definitions to populate field autocomplete. Use backticks for quoted identifiers. One distinct table produces column names; multiple tables produce qualified names. Types and constraints do not configure the query builder. CREATE TABLE LIKE and CREATE TABLE AS SELECT are not supported. Identifier names containing literal dots or surrounding whitespace cannot be represented. Import uses the same SQL-mode assumptions as filter import and rejects unsupported schema clauses, expressions, character sets and collations.',
+    schemaPlaceholder: 'CREATE TABLE `users` (\n  `status` VARCHAR(32),\n  `deleted_at` DATETIME\n);',
+    queryHelp: 'Paste a MariaDB 11.4 LTS filter expression, with or without the WHERE keyword, rather than a complete SELECT statement. For example: WHERE `status` = \'online\' AND `deleted_at` IS NULL. Combine conditions with AND, OR, NOT and parentheses. Use backticks for identifiers and single quotes for text values. Import assumes ANSI_QUOTES, NO_BACKSLASH_ESCAPES, HIGH_NOT_PRECEDENCE, PIPES_AS_CONCAT, ORACLE and EMPTY_STRING_IS_NULL are disabled. Only the supported filter subset is accepted; conditions that cannot be edited visually remain in Raw mode when safe. Raw strings require doubled apostrophes or UTF-8 hex text, and raw LIKE requires explicit ESCAPE. Executable comments, optimizer hints, additional statements and SELECT clauses are rejected. A successful import replaces the current query; a failed import leaves it unchanged.',
+    queryPlaceholder: 'WHERE `status` = \'online\' AND `deleted_at` IS NULL',
   },
   operators: mariadbOperators,
   fieldModifiers: mariadbFieldModifiers,

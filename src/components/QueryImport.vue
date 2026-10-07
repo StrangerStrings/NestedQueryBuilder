@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, useId, watch } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
+import CollapsableHelp from './CollapsableHelp.vue'
 import type { FilterImportResult } from '../types/databaseAdapter'
 
 type ImportError = Extract<FilterImportResult, { success: false }>['error']
@@ -9,6 +10,7 @@ const queryStore = useQueryStore()
 const sqlFilter = ref('')
 const importError = ref<ImportError | null>(null)
 const importSucceeded = ref(false)
+const showImportHelp = ref(false)
 const sqlFilterId = useId()
 const importHelpId = `${sqlFilterId}-help`
 const importErrorId = `${sqlFilterId}-error`
@@ -18,6 +20,7 @@ watch(() => queryStore.database, () => {
   sqlFilter.value = ''
   importError.value = null
   importSucceeded.value = false
+  showImportHelp.value = false
 }, { flush: 'sync' })
 
 // Import the SQL filter and display success or the returned error.
@@ -44,14 +47,13 @@ function importFilter() {
         aria-label="SQL filter to import"
         v-model="sqlFilter"
         @input="importSucceeded = false"
-        rows="4"
-        placeholder="WHERE status = 'online' AND deleted_at IS NULL"
+        rows="12"
+        :placeholder="queryStore.adapter.helpText?.queryPlaceholder"
         :spellcheck="false"
         :aria-invalid="!!importError"
-        :aria-describedby="[queryStore.adapter.sql?.importHelpText ? importHelpId : null, importError ? importErrorId : null].filter(Boolean).join(' ') || undefined"
+        :aria-describedby="[showImportHelp ? importHelpId : null, importError ? importErrorId : null].filter(Boolean).join(' ') || undefined"
       />
-      <p v-if="queryStore.adapter.sql?.importHelpText" :id="importHelpId">{{ queryStore.adapter.sql.importHelpText }}</p>
-      <button type="submit">Import {{ queryStore.adapter.label }} Query</button>
+      <button type="submit" :disabled="!sqlFilter.trim()">Import {{ queryStore.adapter.label }} Query</button>
       <p v-if="importError" :id="importErrorId" class="import-error" role="alert">
         {{ importError.message }}
         <code v-if="importError.fragment">{{ importError.fragment }}</code>
@@ -60,6 +62,13 @@ function importFilter() {
         <p v-if="importSucceeded" class="import-success">Query imported successfully.</p>
       </div>
     </form>
+    <CollapsableHelp
+      v-if="queryStore.adapter.importSqlFilter && queryStore.adapter.helpText?.queryHelp"
+      :id="importHelpId"
+      v-model="showImportHelp"
+      :text="queryStore.adapter.helpText.queryHelp"
+      label="query import help"
+    />
   </section>
 </template>
 
@@ -85,13 +94,16 @@ function importFilter() {
 
 .sql-import button {
   justify-self: start;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #c5ccd8;
-  border-radius: 4px;
-  background: #fff;
-  color: #172033;
-  font: inherit;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d9dee7;
+  border-radius: 0.375rem;
+  color: #5b6472;
+  background: #ffffff;
   cursor: pointer;
+}
+
+.sql-import button:disabled {
+  cursor: not-allowed;
 }
 
 .import-error {

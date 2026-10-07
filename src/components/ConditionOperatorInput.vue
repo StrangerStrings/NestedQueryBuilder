@@ -11,7 +11,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const operatorHelpId = useId()
+const operatorDescriptionId = useId()
 
 // Resolve catalogue wording without making dialect assumptions in the shared control.
 const selectedOperator = computed(
@@ -35,7 +35,7 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
       <select
         :value="modelValue"
         aria-label="Operator"
-        :aria-describedby="selectedOperator ? operatorHelpId : undefined"
+        :aria-describedby="selectedOperator ? operatorDescriptionId : undefined"
         :disabled="options.length === 0"
         @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       >
@@ -56,11 +56,8 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
         >
           info
         </span>
-        <span v-if="selectedOperator" :id="operatorHelpId" class="operator-tooltip" role="tooltip">
+        <span v-if="selectedOperator" :id="operatorDescriptionId" class="operator-tooltip" role="tooltip">
           {{ selectedOperator.description }}
-          <span v-if="selectedOperator.helpText" class="operator-help">
-            {{ selectedOperator.helpText }}
-          </span>
         </span>
       </span>
     </div>
@@ -120,11 +117,6 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
 .operator-input-row:focus-within .operator-tooltip {
   visibility: visible;
   opacity: 1;
-}
-
-.operator-help {
-  display: block;
-  margin-top: 0.5rem;
 }
 
 select {

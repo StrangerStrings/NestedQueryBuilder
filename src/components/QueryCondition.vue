@@ -62,21 +62,14 @@ const colourStyle = computed(() => {
 
 // Validate each condition through the selected dialect and retain node-specific generation feedback.
 const generationError = computed(() => {
-  if (!queryStore.adapter.sql) return null
   const result = queryStore.whereSqlResult
   if (!result.success && result.nodeId === props.condition.id) return result.error
   const conditionResult = queryStore.adapter.generateConditionSql(props.condition)
   return conditionResult.success ? null : conditionResult.error
 })
 
-// Keep placeholder validation while surfacing adapter errors for supported SQL targets.
-const isInvalid = computed(() => {
-  if (queryStore.adapter.sql) return generationError.value !== null
-  const value = props.condition.value
-  return !props.condition.field.name.trim() || !operator.value || (
-    value.hasValue && value.dataType === 'field' && value.dataShape === 'single' && !value.value.trim()
-  )
-})
+// Surface generation errors from the selected database adapter.
+const isInvalid = computed(() => generationError.value !== null)
 
 const emit = defineEmits<{
   select: [condition: QueryCondition]

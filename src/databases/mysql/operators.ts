@@ -1,8 +1,5 @@
 import type { DatabaseOperator } from '../../types/databaseOperator'
 
-const mysqlPatternHelp =
-  'Patterns are used as entered; no wildcards are added or escaped. Use \\% or \\_ for literal wildcards and two backslashes for one. SQL literal quoting is handled separately. MySQL output sets backslash ESCAPE explicitly in both NO_BACKSLASH_ESCAPES modes.'
-
 // Explicit MySQL 8.4 capabilities, independent of PostgreSQL operators and AST metadata.
 export const mysqlOperators: DatabaseOperator[] = [
   {
@@ -121,7 +118,6 @@ export const mysqlOperators: DatabaseOperator[] = [
     id: 'LIKE',
     label: 'matches SQL pattern',
     description: 'Matches the whole text using an SQL pattern: % matches zero or more characters and _ matches one character. Case sensitivity follows the applicable database or column collation; this app does not determine it.',
-    helpText: mysqlPatternHelp,
     valueInput: {
       hasValue: true,
       dataShape: 'single',
@@ -132,7 +128,6 @@ export const mysqlOperators: DatabaseOperator[] = [
     id: 'NOT LIKE',
     label: 'does not match SQL pattern',
     description: 'Excludes whole-text matches of an SQL pattern: % matches zero or more characters and _ matches one character. NULL fields do not match. Include NULL explicitly with IS NULL in an any group. Case sensitivity follows the applicable database or column collation; this app does not determine it.',
-    helpText: mysqlPatternHelp,
     valueInput: {
       hasValue: true,
       dataShape: 'single',
