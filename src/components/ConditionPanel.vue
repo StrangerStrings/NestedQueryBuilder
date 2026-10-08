@@ -16,6 +16,9 @@ const props = defineProps<{
   condition: QueryCondition
 }>()
 
+// Describe condition output using adapter metadata, retaining SQL wording for existing modes.
+const outputLabel = computed(() => queryStore.adapter.presentation?.outputLabel ?? 'SQL')
+
 // Derive the active mode directly from the condition's representation.
 const editingMode = computed(() => props.condition.rawSql === undefined ? 'editor' : 'raw')
 
@@ -24,7 +27,7 @@ const selectedOperator = computed(() =>
   queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
 )
 
-// Render only the selected condition with the same validation and SQL formatting as the query preview.
+// Generate the selected condition's standalone clause directly with adapter validation.
 const conditionSql = computed(() => {
   return queryStore.adapter.generateConditionSql(props.condition)
 })
@@ -168,15 +171,15 @@ const emit = defineEmits<{
         :operator="selectedOperator"
       />
     </template>
-    <section class="condition-preview" aria-label="Condition SQL preview">
-      <h4>Generated {{ queryStore.adapter.label }}</h4>
+    <section class="condition-preview" :aria-label="`Condition ${outputLabel} preview`">
+      <h4>Generated {{ queryStore.adapter.label }}{{ queryStore.adapter.presentation ? ` ${outputLabel}` : '' }}</h4>
       <div aria-live="polite" aria-atomic="true">
         <QueryDisplay
           v-if="conditionSql.success || condition.rawSql !== undefined"
           class="condition-sql"
           :query-text="conditionSql.success ? conditionSql.sql : condition.rawSql ?? ''"
           :language="queryStore.adapter.queryFormat.highlightLanguage"
-          :accessible-label="`Generated ${queryStore.adapter.label} condition`"
+          :accessible-label="`Generated ${queryStore.adapter.label}${queryStore.adapter.presentation ? ` ${outputLabel}` : ''} condition`"
         />
         <details
           v-if="previewError"

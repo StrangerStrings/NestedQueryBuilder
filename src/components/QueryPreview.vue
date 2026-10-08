@@ -11,6 +11,15 @@ const copyStatus = ref<'success' | 'error' | ''>('')
 const copying = ref(false)
 let previewRevision = 0
 
+// Use the adapter's output description while retaining SQL wording for existing modes.
+const outputLabel = computed(() => queryStore.adapter.presentation?.outputLabel ?? 'SQL')
+
+// Describe metadata-provided output directly and preserve existing SQL clipboard labels.
+const copyLabel = computed(() => queryStore.adapter.presentation
+  ? `Copy ${queryStore.adapter.label} ${outputLabel.value}`
+  : queryStore.database === 'sqlite' ? 'Copy SQLite SQL' : `Copy formatted ${queryStore.adapter.label} SQL`,
+)
+
 // Find source-preserved Raw conditions at any depth, including within none groups.
 function hasRawCondition(group: QueryGroup): boolean {
   for (const child of group.children) {
@@ -20,14 +29,16 @@ function hasRawCondition(group: QueryGroup): boolean {
   return false
 }
 
-// Preserve SQLite Raw source exactly; otherwise format with the original SQL as fallback.
+// Preserve SQLite Raw and unformatted output; otherwise format SQL with the original as fallback.
 const formattedSql = computed(() => {
   const result = queryStore.whereSqlResult
   if (!result.success || !result.sql) return ''
   if (queryStore.database === 'sqlite' && hasRawCondition(queryStore.query)) return result.sql
+  const dialect = queryStore.adapter.queryFormat.formatterDialect
+  if (dialect === null) return result.sql
 
   try {
-    return format(result.sql, { language: queryStore.adapter.queryFormat.formatterDialect })
+    return format(result.sql, { language: dialect })
   } catch {
     return result.sql
   }
@@ -45,7 +56,7 @@ watch(
   { deep: true, flush: 'sync' },
 )
 
-// Copy the displayed SQL and report clipboard failures without changing the query.
+// Copy the displayed output and report clipboard failures without changing the query.
 async function copySql() {
   const revision = previewRevision
   const database = queryStore.database
@@ -72,24 +83,24 @@ async function copySql() {
 </script>
 
 <template>
-  <section aria-label="Query output">
+  <section :aria-label="queryStore.adapter.presentation ? `Query ${outputLabel} output` : 'Query output'">
     <div class="sql-preview">
       <div class="sql-preview-header">
-        <span>Generated {{ queryStore.adapter.label }}</span>
+        <span>Generated {{ queryStore.adapter.label }}{{ queryStore.adapter.presentation ? ` ${outputLabel}` : '' }}</span>
       </div>
       <QueryDisplay
         v-if="queryStore.whereSqlResult.success"
         class="sql-output"
         :query-text="formattedSql"
         :language="queryStore.adapter.queryFormat.highlightLanguage"
-        :accessible-label="`Generated ${queryStore.adapter.label} SQL`"
+        :accessible-label="`Generated ${queryStore.adapter.label} ${outputLabel}`"
       />
       <p v-else class="generation-error" role="alert">
         {{ queryStore.whereSqlResult.error }}
       </p>
       <button
         type="button"
-        :aria-label="queryStore.database === 'sqlite' ? 'Copy SQLite SQL' : `Copy formatted ${queryStore.adapter.label} SQL`"
+        :aria-label="copyLabel"
         :aria-describedby="copyStatusId"
         :disabled="copying || !queryStore.whereSqlResult.success || !formattedSql"
         @click="copySql"
@@ -104,9 +115,9 @@ async function copySql() {
         aria-live="polite"
         aria-atomic="true"
       >
-        <template v-if="copyStatus === 'success'">SQL copied to clipboard.</template>
+        <template v-if="copyStatus === 'success'">{{ outputLabel }} copied to clipboard.</template>
         <template v-else-if="copyStatus === 'error'">
-          Could not copy SQL. Select the query text and copy it manually.
+          Could not copy {{ outputLabel }}. Select the query text and copy it manually.
         </template>
       </p>
     </div>

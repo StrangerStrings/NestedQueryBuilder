@@ -208,7 +208,7 @@ export const useQueryStore = defineStore('query', () => {
   // Preserve the previous schema suggestions unless the entire import succeeds.
   function importSchemaSql(sql: string): SchemaImportResult {
     const importer = adapter.value.importSchemaSql
-    if (!importer) return { success: false, error: `${adapter.value.label} schema import is not supported.` }
+    if (!importer) return { success: false, error: `${adapter.value.label} ${adapter.value.presentation?.schemaImportLabel ?? 'schema'} import is not supported.` }
     const result = importer(sql)
     if (result.success) schemaFields.value = result.fields
     return result
@@ -220,7 +220,7 @@ export const useQueryStore = defineStore('query', () => {
   // Replace the tree on successful import; the existing watcher assigns imported condition colours.
   function importSqlFilter(filter: string): FilterImportResult {
     const importer = adapter.value.importSqlFilter
-    if (!importer) return { success: false, error: { kind: 'unsupported-expression', message: `${adapter.value.label} SQL filter import is not supported.` } }
+    if (!importer) return { success: false, error: { kind: 'unsupported-expression', message: `${adapter.value.label} ${adapter.value.presentation?.queryImportLabel ?? 'SQL filter'} import is not supported.` } }
     const result = importer(filter)
     if (result.success) {
       query.value = result.tree

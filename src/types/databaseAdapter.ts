@@ -10,7 +10,12 @@ export type FilterImportResult =
   | { success: false; error: { kind: 'syntax' | 'unsupported-expression' | 'unsupported-operator' | 'unsupported-value'; message: string; fragment?: string } }
 
 export type SchemaImportResult =
-  | { success: true; fields: string[] }
+  | {
+      success: true
+      fields: string[]
+      /** Describe excluded schema paths and the reasons for their exclusion. */
+      warnings?: string[]
+    }
   | { success: false; error: string }
 
 export interface DatabaseAdapter {
@@ -19,8 +24,15 @@ export interface DatabaseAdapter {
   version: string
   icon: string
   queryFormat: {
-    formatterDialect: 'postgresql' | 'mysql' | 'mariadb' | 'sqlite'
+    /** Null bypasses SQL formatting for generated output such as JSON. */
+    formatterDialect: 'postgresql' | 'mysql' | 'mariadb' | 'sqlite' | null
     highlightLanguage: 'sql' | 'json'
+  }
+  /** Absent metadata retains the existing SQL wording. */
+  presentation?: {
+    outputLabel: string
+    queryImportLabel: string
+    schemaImportLabel: string
   }
   helpText?: {
     schemaHelp: string

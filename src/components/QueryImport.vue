@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useId, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
 import CollapsableHelp from './CollapsableHelp.vue'
 import type { FilterImportResult } from '../types/databaseAdapter'
@@ -15,7 +15,10 @@ const sqlFilterId = useId()
 const importHelpId = `${sqlFilterId}-help`
 const importErrorId = `${sqlFilterId}-error`
 
-// Clear SQL drafts and feedback on every database change, including direct store entry points.
+// Describe the adapter's import format while retaining the existing SQL label.
+const queryImportLabel = computed(() => queryStore.adapter.presentation?.queryImportLabel ?? 'SQL filter to import')
+
+// Clear query drafts and feedback on every database change, including direct store entry points.
 watch(() => queryStore.database, () => {
   sqlFilter.value = ''
   importError.value = null
@@ -23,7 +26,7 @@ watch(() => queryStore.database, () => {
   showImportHelp.value = false
 }, { flush: 'sync' })
 
-// Import the SQL filter and display success or the returned error.
+// Import the query and display success or the returned error.
 function importFilter() {
   if (!queryStore.adapter.importSqlFilter) return
   const result = queryStore.importSqlFilter(sqlFilter.value)
@@ -44,7 +47,7 @@ function importFilter() {
     >
       <textarea
         :id="sqlFilterId"
-        aria-label="SQL filter to import"
+        :aria-label="queryImportLabel"
         v-model="sqlFilter"
         @input="importSucceeded = false"
         rows="12"
