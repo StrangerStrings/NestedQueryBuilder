@@ -19,7 +19,7 @@ export interface DatabaseAdapter {
   version: string
   icon: string
   queryFormat: {
-    formatterDialect: 'postgresql' | 'mysql' | 'mariadb'
+    formatterDialect: 'postgresql' | 'mysql' | 'mariadb' | 'sqlite'
     highlightLanguage: 'sql' | 'json'
   }
   helpText?: {

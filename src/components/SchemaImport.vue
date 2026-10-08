@@ -40,7 +40,7 @@ function importSchema() {
         :aria-invalid="!!schemaError"
         :aria-describedby="[showSchemaHelp ? 'schema-database-help' : null, schemaError ? 'schema-error' : null].filter(Boolean).join(' ') || undefined"
       ></textarea>
-      <button type="submit" :disabled="!schemaSql.trim()">Import Schema</button>
+      <button type="submit" :disabled="queryStore.database === 'sqlite' ? schemaSql.length === 0 : !schemaSql.trim()">Import Schema</button>
       <p v-if="schemaError" id="schema-error" role="alert">{{ schemaError }}</p>
       <p role="status" aria-live="polite">{{ schemaSuccess }}</p>
     </form>
