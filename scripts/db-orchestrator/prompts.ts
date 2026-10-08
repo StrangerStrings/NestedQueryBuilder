@@ -24,6 +24,16 @@ Dependencies are 1-based stage numbers, not titles. Prefer existing database ada
 Honor every saved user decision and any revision feedback. Do not add validation commands.
 Return the overview and stages in structured JSON; the orchestrator will render plan.md.`,
 
+  impactPlanner: `Assess only the impact of the new architectural answers supplied in the task.
+Read the saved blocker, approved requirements, current plan, previous decisions and relevant source.
+Do not restart research or regenerate the entire plan. Preserve stage numbering, ordering and count.
+Return complete replacements only for existing stages that actually need changing, using stageNumber.
+Keep unaffected stages unchanged. List completed stages that must be reopened, including any whose
+implementation no longer satisfies the new decision. Explain the effect in summary, and provide a
+requirementsAddendum only when the approved requirements need clarification or amendment.
+The new answers are proposed until the human approves your impact report. Do not edit any files.
+Perform additional source research only if it is needed to understand this particular blocker.`,
+
   questions: `Read requirements.md, plan.md, decisions.json and the relevant source code.
 Identify only important unresolved architectural choices that require human judgment.
 Do not ask about facts you can discover in the repository, routine implementation choices,
@@ -59,7 +69,7 @@ Read its instructions and compare the before.patch and after.patch snapshots to 
 these snapshots include cumulative tracked and untracked changes relative to the original commit.
 Read current source for context; do not rely on the implementer's summary as evidence.
 On a repair attempt, verify the prior findings are resolved and review the entire stage against its
-original instructions and acceptance criteria, including regressions caused by the correction.
+current approved instructions and acceptance criteria, including regressions caused by the correction.
 Check acceptance criteria, omissions, obvious regressions, unnecessary changes, accessibility and
 compliance with the approved architecture. Review source only; do not execute any validation commands.
 PASS requires no unresolved findings. FAIL must include actionable findings with file paths and relevant
@@ -100,8 +110,12 @@ Shared constraints:
 - Never silently change approved decisions or expand scope; report a blocker instead.
 - Do not spawn additional agents or recursive orchestration runs. Return the requested JSON yourself.
 - Failed mini reviews return to the detailed planner and implementer for bounded repair attempts.
-  BLOCKED verdicts stop for human input. The final review never starts a repair loop.
-  CLI errors are not retried; interrupted-run resume and usage-limit management are not implemented.
+  Architectural blockers go to human questions and a targeted plan-impact approval checkpoint.
+  The final review never starts a repair or architectural-decision loop.
+- The orchestrator checkpoints each result and supports explicit resume. If recovering an interrupted
+  attempt, inspect its saved report/logs and actual partial changes before doing remaining work.
+  Do not undo completed work or assume an interrupted command succeeded. Do not repeat forbidden checks.
+- Approved architectural addenda and decisions supersede older conflicting stage instructions.
 - Return only the structured final response required by the supplied JSON schema.
 
 Project rules captured from the original checkout:

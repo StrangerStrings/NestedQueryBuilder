@@ -1,145 +1,184 @@
 # Database orchestrator
 
-Run from this repository in an interactive terminal:
+Run these commands from the original repository in an interactive terminal.
 
 ```sh
+# Start a new database run.
 npm run db:add -- "SQLite"
+
+# Continue the newest saved run for this database.
+npm run db:add -- "SQLite" --resume
+
+# Request a pause from a second terminal.
+npm run db:add -- "SQLite" --pause
+
+# Select a particular run instead of the newest timestamp folder.
+npm run db:add -- "SQLite" --resume --run-id 2026-10-08T10-49-29-591Z
 ```
 
-The database name is the input; names containing spaces can be quoted. Use
-`npm run db:add -- --help` for usage. This uses the existing `jiti` development
-dependency, so install the repository's dependencies first if needed.
-
-The `codex` executable must be on your PATH and already signed in using ChatGPT
-(`codex login`). Set `CODEX_BIN` to its absolute path if necessary. The script
-checks the saved login, removes API-key environment overrides from child
-processes, and requires ChatGPT authentication for each session. There is no
-API billing fallback or model substitution. Your account must have access to
-the configured models.
+The script uses the existing `jiti` development dependency. The `codex` executable
+must be on PATH and signed in using ChatGPT (`codex login`). Set `CODEX_BIN` to
+its absolute path if needed. Child processes remove API-key overrides and require
+ChatGPT authentication; there is no API billing fallback or model substitution.
 
 ## Workflow
 
-1. Create `codex/database-<database>` and its worktree from the current `HEAD`.
-2. Research the database and existing application to produce requirements.
-3. Produce a high-level plan and identify important design questions.
-4. Collect numbered choices or custom answers, then revise the plan around them.
-5. Display the plan and offer **Approve and implement / Revise / Stop**.
-6. For each approved stage, create detailed instructions, implement them, and
-   perform an independent source review. A mini-review **FAIL** sends the findings
-   back to the Detailed Planner for correction instructions, then to the
-   Implementer, then to another mini review. Advance only after **PASS**.
-7. Perform the final source review once and leave everything for human review.
-   Its verdict never starts a repair loop.
+1. Create `codex/database-<database>` and a worktree from the current `HEAD`.
+2. Research the database and current application to produce requirements.
+3. Prepare a high-level plan and ask meaningful architectural questions.
+4. Save your answers and revise the plan, then wait for your explicit approval.
+5. For each stage: Detailed Planner → Implementer → Mini Reviewer.
+6. A mini-review FAIL goes back through detailed planning, implementation and
+   review, with up to three repair attempts after the initial implementation.
+7. After every stage passes, perform the final review once. Its verdict never
+   triggers a repair loop or an architectural-decision loop.
 
-Scope is query generation, query parsing, schema handling, and popular operators
-that fit the application's existing capabilities. Live query execution, new
-backends, and major new UI capabilities are outside scope.
+Scope is query generation, parsing, schema handling and popular operators that
+fit existing capabilities. Live query execution, new backends and major new UI
+capabilities remain outside scope.
 
-No tests are created or changed. Tests, formatting, linting, type checks and
-builds are disabled. A review PASS means the source review found no unresolved
-issues; it does not mean behavior has been verified by execution.
+There are no commits, merges or pushes. No tests are created or changed; tests,
+formatting, linting, type checks and builds are disabled. PASS means a source
+review found no unresolved issues, not that runtime behavior was verified.
 
-Mini reviews allow up to **three repair attempts per stage** after the initial
-implementation (four mini reviews total). Each attempt preserves its instructions,
-implementation report, snapshots and review. A **BLOCKED** result, architectural
-decision, exhausted repair limit, failed final review, CLI error or malformed
-handoff stops the run and preserves its files. Repairs keep the approved plan and
-decisions fixed; reviewers reassess the entire stage, including its original
-acceptance criteria, after every correction.
+## Architectural decisions during implementation
 
-There are no commits, merges, pushes, CLI-error retries, resume support, or
-usage-limit management. Human-requested plan revisions are supported before
-implementation. Existing database branches and worktrees are never overwritten.
+A Detailed Planner requiring a decision, an Implementer returning BLOCKED, or a
+Mini Reviewer returning BLOCKED opens a saved architectural checkpoint:
 
-## Files
+1. The Design Question Agent reads the blocker and existing approved contract.
+2. You select an option or provide a custom answer. Each answer is saved immediately.
+3. The High-Level Planner performs a **targeted impact assessment**. It proposes
+   amendments to existing stages and requirements; it does not regenerate the
+   full plan, renumber stages or restart research.
+4. The terminal shows the proposed changes and any completed stages to reopen.
+   Choose Approve, Revise or Pause. Proposed answers do not become authoritative
+   until the amendment is approved.
+5. Continue with detailed planning for the earliest affected incomplete stage.
 
-Tracked orchestrator source lives in `scripts/db-orchestrator/`. Generated files
-live beneath the Git-ignored `.codex-orchestrator/` directory:
+Unchanged completed stages remain completed. A changed completed stage and its
+completed dependents are listed for reopening before approval. Existing code is
+preserved when a stage reopens; agents adapt it to the new decisions. Research
+is limited to evidence needed for the particular blocker.
+
+The planner can update existing stages only. A change requiring an entirely
+different stage structure should be handled as a separate workflow change.
+
+## Pause and resume
+
+- **Ctrl+C once during an agent:** request a pause after that agent finishes.
+  It can still use tokens while finishing. The result and next position are saved.
+- **Ctrl+C twice:** interrupt the agent immediately and preserve partial work.
+- **At a question or approval:** choose `p`, or press Ctrl+C. Saved answers remain.
+- **From another terminal:** use `--pause`. The next boundary stops the run. If
+  the runner is waiting at a question, choose `p` there to exit immediately.
+- **Usage-limit errors:** the run stops with a saved cursor. Resume manually
+  after your allowance is available; there is no polling or scheduled restart.
+
+`--resume` reuses the worktree, completed stages, accepted decisions and saved
+agent results. If an agent did not finish, a fresh session gets its prior logs and
+instructions to inspect partial changes before continuing the remaining task.
+It does not blindly reapply the entire implementation. A finished final review
+is displayed again without another model call.
+
+The cursor is stored atomically in `run.json` after each agent handoff and human
+answer. Agent logs have unique numbers across resumes. A process lock prevents
+concurrent runs against the same saved workflow and detects surviving CLI
+processes after an abrupt exit.
+
+Do not edit the database worktree or approved workflow files outside this process
+while a run is active or paused. Resume checks the branch, original commit,
+staging area, source fingerprint and approved documents. Unexpected changes stop
+resume without discarding files. Changes from an interrupted Implementer are
+preserved and explicitly inspected by its replacement session.
+
+Older runs are migrated when first resumed, with the old `run.json` backed up as
+`legacy-run.json`. The existing SQLite run's Stage 1, attempt 2 BLOCKED report is
+recognized and opens the architectural-decision checkpoint. Its research,
+approved plan, prior answers and attempts are reused. Older unfinished planning
+phases may need a new question pass because they did not record a precise cursor.
+
+CLI failures are not automatically retried. Explicit resume retries the unfinished
+agent. If the stage repair limit is exhausted, increase `maxStageRepairAttempts`
+before resuming to authorize another repair. An approved architectural amendment
+starts a fresh repair allowance under the revised contract.
+
+## Files and Git
+
+Source is in `scripts/db-orchestrator/`. Generated files are Git-ignored:
 
 ```text
 .codex-orchestrator/
-  worktrees/<database>/             # Application changes on a separate branch
+  worktrees/<database>/
   runs/<database>/<timestamp>/
-    run.json                       # Progress and paths, for inspection only
-    models.json                    # Model settings used for this run
+    run.json                       # Durable workflow cursor and active agent
+    legacy-run.json                # Backup when migrating an older run
+    runner.lock                    # Active process IDs; removed on normal exit
+    pause.request                  # Request to pause at the next boundary
+    models.json
     requirements.md
     plan.md
     plan.json
-    decisions.json                 # Answers, feedback and explicit plan approval
-    plans/1.md                     # Prior plan revisions
+    decisions.json
+    plans/revision-1/               # Plan, questions and partial answers
     stages/01/
-      instructions.md              # Latest attempt (also retained below)
-      instructions.json
+      before.patch                 # Historical baseline for this stage
+      after.patch                  # Latest stage state
+      instructions.md             # Latest attempt, with JSON counterparts
       implementation.md
-      implementation.json
-      before.patch                 # Original stage baseline, never overwritten
-      after.patch
       review.md
-      review.json
-      attempts/01/                 # Initial implementation and review
-        instructions.md
-        instructions.json
-        implementation.md
-        implementation.json
-        before.patch               # Baseline for this attempt
-        after.patch
-        review.md
-        review.json
-      attempts/02/                 # First repair, when needed; same file layout
-    final.patch                    # Tracked and untracked cumulative changes
+      attempts/01/                 # Preserved instructions, reports and snapshots
+      attempts/02/
+    architecture/001/
+      blocker.json
+      before-requirements.md
+      before-plan.json
+      before-plan.md
+      before-decisions.json
+      completed-stages.json
+      questions.json
+      answers.json                 # Proposed answers, saved one at a time
+      feedback.json
+      revision-1/                  # Impact report, proposed plan and reopen list
+      approval.json
+    final.patch
     final-review.md
     final-review.json
-    logs/
-      001-researcher.prompt.md
-      001-researcher.schema.json
-      001-researcher.invocation.json
-      001-researcher.response.json
-      001-researcher.events.jsonl
-      001-researcher.stderr.log
+    logs/                          # Prompts, schemas, responses and raw CLI logs
 ```
 
-The orchestrator saves agent responses itself and gives sessions absolute paths
-to previous outputs. Each role runs in a fresh `codex exec` session. The detailed
-planner produces a task prompt; its output is never executed as a shell command.
+New worktrees start from committed HEAD, excluding uncommitted changes in the
+original checkout. Open the reported **worktree folder** to review generated
+changes: switching branches in the original folder will not bring its uncommitted
+edits across. Resume always keeps the original run's base commit even if the
+original checkout has advanced. The current root `AGENTS.md` is included in prompts.
 
-Worktrees start from the committed `HEAD`: staged changes, unstaged changes and
-untracked files in the original checkout are not copied. The root `AGENTS.md`
-is also captured in agent prompts so current shared rules are available.
-Do not manually edit the database worktree while its run is active.
-
-Open the reported worktree in the Codex app or your editor to review its files.
-**Uncommitted changes belong to that worktree**, so simply switching the original
-checkout to the branch will not display them. The script leaves the worktree in
-place; decide what to commit or remove yourself after review.
+The orchestrator owns all workflow documents. Agents return structured results;
+their task prompts are never executed as shell commands. Implementation agents
+may edit application files in the worktree. Research, planning and review agents
+use a read-only sandbox. Live documentation search is enabled. Implementation
+uses workspace-write with network access and permits necessary dependency
+installation with `--ignore-scripts`. Existing machine/account policies apply.
 
 ## Configuration
 
-Edit `config.ts` to change each role's model and reasoning effort:
+Edit `config.ts` to configure roles independently. The impact assessment is a
+separate invocation of the High-Level Planner, with the same default model.
 
 | Role | Model | Effort |
 | --- | --- | --- |
 | Researcher | GPT-6.1 Sol | high |
-| High-level planner | GPT-6 Astra | high |
+| High-level planner / impact assessment | GPT-6 Astra | high |
 | Design questions | GPT-6.1 Sol | medium |
 | Detailed planner | GPT-6.1 Sol | high |
 | Implementer | GPT-6.1 Sol | selected by the detailed planner |
 | Mini reviewer | GPT-6.1 Sol | medium |
 | Final reviewer | GPT-6 Astra | xhigh |
 
-Set `plannerChoosesImplementationEffort` to `false` to use the implementer's
-configured effort for every stage instead.
+Set `plannerChoosesImplementationEffort` to `false` to use the Implementer's
+configured effort. `maxStageRepairAttempts` counts corrections after the initial
+implementation; `0` stops at the first failed mini review. Resumed agent calls use
+the current configuration; existing completed results are retained.
 
-Set `maxStageRepairAttempts` to change the repair limit. It counts corrections
-after the initial implementation; `0` stops at the first failed mini review.
-The final reviewer always runs once, regardless of this setting.
-
-Research and review sessions use a read-only sandbox. Implementation uses
-workspace-write with network access enabled. Live documentation search is
-enabled for every role. Necessary dependency installation is permitted within
-the worktree, using `--ignore-scripts` to avoid indirectly invoking forbidden
-checks. Noninteractive sessions do not request routine approvals; operations
-blocked by local Codex permissions are reported to the agent. Existing account,
-organization and machine restrictions still apply.
-
-Source: [Codex non-interactive execution](https://learn.chatgpt.com/docs/non-interactive-mode)
+Sources: [Codex non-interactive execution](https://learn.chatgpt.com/docs/non-interactive-mode)
 and [ChatGPT authentication](https://learn.chatgpt.com/docs/auth).

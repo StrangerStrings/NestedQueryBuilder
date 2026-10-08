@@ -33,6 +33,12 @@ export type Review = {
   summary: string
   findings: string[]
 }
+export type PlanImpact = {
+  summary: string
+  requirementsAddendum: string
+  changes: { stageNumber: number; stage: Stage }[]
+  reopenStages: number[]
+}
 export type Outputs = {
   researcher: Requirements
   planner: Plan
@@ -41,6 +47,7 @@ export type Outputs = {
   implementer: Implementation
   miniReviewer: Review
   finalReviewer: Review
+  impactPlanner: PlanImpact
 }
 
 type Schema = {
@@ -71,6 +78,12 @@ const review = object({
   status: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED'] },
   summary: text,
   findings: array(text),
+})
+const stageSchema = object({
+  title: text,
+  objective: text,
+  dependencies: array({ type: 'integer', minimum: 1 }),
+  acceptanceCriteria: array(text, 1),
 })
 
 export const schemas: Record<keyof Outputs, Schema> = {
@@ -105,6 +118,12 @@ export const schemas: Record<keyof Outputs, Schema> = {
   }),
   miniReviewer: review,
   finalReviewer: review,
+  impactPlanner: object({
+    summary: text,
+    requirementsAddendum: optionalText,
+    changes: array(object({ stageNumber: { type: 'integer', minimum: 1 }, stage: stageSchema })),
+    reopenStages: array({ type: 'integer', minimum: 1 }),
+  }),
 }
 
 // Validate the small schema vocabulary used here before trusting an agent handoff.
