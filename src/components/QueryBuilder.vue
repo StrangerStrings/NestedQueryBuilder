@@ -48,9 +48,9 @@ function toggleDragAndDropMode() {
 </script>
 
 <template>
-  <section>
+  <section class="query-builder" aria-label="Query builder">
     <div class="editor-workspace" :class="{ 'has-selection': selectedCondition }">
-      <div class="builder-content">
+      <div class="builder-content" role="region" aria-label="Query conditions" tabindex="0">
         <div class="conditions">
           <QueryGroup
             :group="queryStore.query"
@@ -64,6 +64,7 @@ function toggleDragAndDropMode() {
           v-if="selectedCondition"
           :key="selectedCondition.id"
           :condition="selectedCondition"
+          tabindex="0"
           @close="closeConditionPanel"
         />
       </Transition>
@@ -82,8 +83,18 @@ function toggleDragAndDropMode() {
 </template>
 
 <style scoped>
+.query-builder {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
 .editor-workspace {
   display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   align-items: flex-start;
   gap: 1rem;
 }
@@ -91,11 +102,26 @@ function toggleDragAndDropMode() {
 .builder-content {
   min-width: 0;
   flex: 1;
+  height: 100%;
+  overflow: auto;
+}
+
+.condition-panel {
+  max-height: 100%;
+  overflow: auto;
+}
+
+.builder-content:focus-visible,
+.condition-panel:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
 }
 
 .conditions {
   display: grid;
   gap: 0.5rem;
+  /* Leave room for the group mode badge and its focus outline inside the scroll area. */
+  padding-left: 1.5rem;
 }
 
 .drag-pan-icon {

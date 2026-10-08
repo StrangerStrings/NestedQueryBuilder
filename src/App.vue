@@ -39,7 +39,7 @@ watch(
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'builder-active': activeTab === 'builder' }">
     <div class="top-navigation">
       <TabNavigation :active-tab="activeTab" @select="selectTab" />
     </div>
@@ -76,10 +76,14 @@ watch(
 }
 
 .top-navigation {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 2rem;
   overflow-x: auto;
+  background: #ebebf3;
   border-bottom: 1px solid #d9dee7;
 }
 
@@ -87,6 +91,26 @@ watch(
   max-width: 960px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
+}
+
+.builder-active {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.builder-active .top-navigation {
+  flex-shrink: 0;
+}
+
+.builder-active .main-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (min-width: 1200px) {

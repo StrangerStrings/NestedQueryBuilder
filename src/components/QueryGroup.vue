@@ -324,10 +324,6 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
 
 <style scoped>
 .query-group {
-  --group-border-color: #bcc4cf;
-  --group-border-color: #949eac;
-  --group-background-color: #fff;
-  --mode-badge-color: #949eac;
   position: relative;
   display: grid;
   gap: 0.5rem;
@@ -336,23 +332,22 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
   border: 4px solid var(--group-border-color);
   border-radius: 36px;
   background: var(--group-background-color);
+  --group-border-color: #bcc4cf;
+  --group-border-color: #949eac;
+  --group-background-color: #fff;
+  --group-border-color: #949eac;
+
 }
 
 .query-group.mode-all {
   --group-border-color: #858e9b;
-  --group-border-color: #707987;
-  --group-background-color: #f0f2f4;
-  --mode-badge-color: #707987;
-}
-
-.query-group.mode-all > .mode-badge {
-  color: #798290;
+  --group-border-color: #8a929d;
+  --group-background-color: #f6f7f8;  
 }
 
 .query-group.mode-none {
-  --group-border-color: #4a5361;
-  --group-background-color: #dbdde0;
-  --mode-badge-color: #4a5361;
+  --group-background-color: #e9ebee;
+  --group-border-color: #6e7581;
 }
 
 .group-actions {
@@ -377,9 +372,9 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
   align-items: center;
   justify-content: center;
   padding: 0.5rem 0.35rem;
-  border: 4px solid var(--mode-badge-color);
+  border: 4px solid var(--group-border-color);
   border-radius: 16px;
-  color: var(--mode-badge-color);
+  color: var(--group-border-color);
   background: var(--group-background-color);
   font-family: inherit;
   cursor: pointer;
