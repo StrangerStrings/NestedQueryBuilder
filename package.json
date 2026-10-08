@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "db:add": "jiti scripts/db-orchestrator/index.ts",
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",

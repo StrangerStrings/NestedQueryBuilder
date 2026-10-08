@@ -37,3 +37,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Database orchestration artifacts and worktrees
+/.codex-orchestrator/
