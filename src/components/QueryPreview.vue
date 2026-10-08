@@ -2,6 +2,7 @@
 import { computed, ref, useId, watch } from 'vue'
 import { format } from 'sql-formatter'
 import { useQueryStore } from '../stores/queryStore'
+import type { QueryGroup } from '../types/query'
 import QueryDisplay from './QueryDisplay.vue'
 
 const queryStore = useQueryStore()
@@ -10,10 +11,20 @@ const copyStatus = ref<'success' | 'error' | ''>('')
 const copying = ref(false)
 let previewRevision = 0
 
-// Format SQL in the active dialect, preserving the original SQL if formatting fails.
+// Find source-preserved Raw conditions at any depth, including within none groups.
+function hasRawCondition(group: QueryGroup): boolean {
+  for (const child of group.children) {
+    if (child.kind === 'condition' && child.rawSql !== undefined) return true
+    if (child.kind === 'group' && hasRawCondition(child)) return true
+  }
+  return false
+}
+
+// Preserve SQLite Raw source exactly; otherwise format with the original SQL as fallback.
 const formattedSql = computed(() => {
   const result = queryStore.whereSqlResult
   if (!result.success || !result.sql) return ''
+  if (queryStore.database === 'sqlite' && hasRawCondition(queryStore.query)) return result.sql
 
   try {
     return format(result.sql, { language: queryStore.adapter.queryFormat.formatterDialect })
@@ -78,7 +89,7 @@ async function copySql() {
       </p>
       <button
         type="button"
-        :aria-label="`Copy formatted ${queryStore.adapter.label} SQL`"
+        :aria-label="queryStore.database === 'sqlite' ? 'Copy SQLite SQL' : `Copy formatted ${queryStore.adapter.label} SQL`"
         :aria-describedby="copyStatusId"
         :disabled="copying || !queryStore.whereSqlResult.success || !formattedSql"
         @click="copySql"

@@ -53,7 +53,7 @@ function importFilter() {
         :aria-invalid="!!importError"
         :aria-describedby="[showImportHelp ? importHelpId : null, importError ? importErrorId : null].filter(Boolean).join(' ') || undefined"
       />
-      <button type="submit" :disabled="!sqlFilter.trim()">Import {{ queryStore.adapter.label }} Query</button>
+      <button type="submit" :disabled="queryStore.database === 'sqlite' ? sqlFilter.length === 0 : !sqlFilter.trim()">Import {{ queryStore.adapter.label }} Query</button>
       <p v-if="importError" :id="importErrorId" class="import-error" role="alert">
         {{ importError.message }}
         <code v-if="importError.fragment">{{ importError.fragment }}</code>
