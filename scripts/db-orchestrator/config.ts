@@ -13,7 +13,7 @@ export const agents = {
   // The same high-level planner runs a narrow impact assessment for new decisions.
   impactPlanner: { model: 'gpt-6-astra', effort: 'high' },
   questions: { model: 'gpt-6.1-sol', effort: 'medium' },
-  detailedPlanner: { model: 'gpt-6.1-sol', effort: 'high' },
+  detailedPlanner: { model: 'gpt-6.1-sol', effort: 'medium' },
   implementer: { model: 'gpt-6.1-sol', effort: 'medium' },
   miniReviewer: { model: 'gpt-6.1-sol', effort: 'medium' },
   finalReviewer: { model: 'gpt-6-astra', effort: 'xhigh' },

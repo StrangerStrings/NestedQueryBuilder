@@ -144,7 +144,7 @@ function applyImpact(plan: Plan, impact: PlanImpact, completed: number[]): { pla
   return { plan: revised, reopen: completed.filter((number) => affected.has(number)) }
 }
 
-// Continue from the durable cursor, saving results and human answers before advancing.
+// Resume the saved cursor and give execution roles focused stage context before each handoff.
 export async function runWorkflow(host: WorkflowHost): Promise<void> {
   const { context, progress, saveJson } = host
   const root = context.runDir
@@ -400,11 +400,25 @@ Stage artifacts: ${stageDir}. Current attempt: ${attemptDir}.
 Read the current approved requirements, plan and decisions; they supersede obsolete instructions.
 Older attempts and blocker resolutions remain in ${stageDir}/attempts and ${root}/architecture.
 ${progress.previousAttempt ? `Repair the findings in ${progress.previousAttempt}/review.json. Read its implementation report and instructions before making focused corrections.` : 'Implement the current approved stage against the existing code, preserving work already completed.'}`
+      // Supply approved answers directly without requiring a full-document reread for each small step.
+      const executionTask = progress.stageStep === 'plan' || progress.stageStep === 'implement'
+        ? `Approved stage ${number}/${plan.stages.length} (fixed scope and acceptance criteria):
+${JSON.stringify(plan.stages[number - 1], null, 2)}
+
+Approved decisions, in order (question and exact answer; use those relevant to this stage):
+${JSON.stringify(readJson<Decisions>(join(root, 'decisions.json')).answers.map(({ question, answer }) => ({ question, answer })), null, 2)}
+
+Stage artifacts: ${stageDir}. Current attempt: ${attemptDir}.
+The full requirements, plan and decision records remain available at the paths in the prompt.
+Use them for specific ambiguities or dependencies, not as a mandatory reading list. Current approved
+decisions supersede obsolete instructions. Preserve existing work and implement only this small step.
+${progress.previousAttempt ? `Repair findings to address:\n${JSON.stringify(readJson<Review>(join(progress.previousAttempt, 'review.json'), 'miniReviewer'), null, 2)}\nPrevious attempt (reference only): ${progress.previousAttempt}` : ''}`
+        : ''
       console.log(`\nStage ${number}/${plan.stages.length}, attempt ${progress.attempt}: ${progress.stageStep}`)
       if (progress.stageStep === 'plan') {
         const path = join(attemptDir, 'instructions.json')
         const details = existsSync(path) ? readJson<Outputs['detailedPlanner']>(path, 'detailedPlanner')
-          : await host.agent('detailedPlanner', task, `${attemptDir}/plan`)
+          : await host.agent('detailedPlanner', executionTask, `${attemptDir}/plan`)
         for (const directory of [attemptDir, stageDir]) {
           saveJson(join(directory, 'instructions.json'), details)
           writeFileSync(join(directory, 'instructions.md'), details.instructions)
@@ -416,7 +430,7 @@ ${progress.previousAttempt ? `Repair the findings in ${progress.previousAttempt}
         const path = join(attemptDir, 'implementation.json')
         const details = readJson<Outputs['detailedPlanner']>(join(attemptDir, 'instructions.json'), 'detailedPlanner')
         const result = existsSync(path) ? readJson<Outputs['implementer']>(path, 'implementer')
-          : await host.agent('implementer', `${task}\nRead and carry out ${attemptDir}/instructions.md.`, `${attemptDir}/implement`, settings.plannerChoosesImplementationEffort ? details.effort : undefined)
+          : await host.agent('implementer', `${executionTask}\nImplementation instructions:\n${details.instructions}\nSaved copy: ${attemptDir}/instructions.md`, `${attemptDir}/implement`, settings.plannerChoosesImplementationEffort ? details.effort : undefined)
         for (const directory of [attemptDir, stageDir]) {
           saveJson(join(directory, 'implementation.json'), result)
           writeFileSync(join(directory, 'implementation.md'), `# ${result.status}\n\n${result.summary}\n\nChanged files:\n${result.changedFiles.map((file) => `- ${file}`).join('\n')}\n\nConcerns:\n${result.concerns.map((concern) => `- ${concern}`).join('\n')}\n`)

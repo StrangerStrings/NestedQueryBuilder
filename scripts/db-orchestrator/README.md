@@ -41,6 +41,32 @@ There are no commits, merges or pushes. No tests are created or changed; tests,
 formatting, linting, type checks and builds are disabled. PASS means a source
 review found no unresolved issues, not that runtime behavior was verified.
 
+## Keep each step small
+
+Planning and implementation prompts explicitly prefer the smallest change that
+satisfies the approved stage, existing patterns and direct code. They exclude
+speculative edge-case support, extra configuration, unrelated cleanup and work
+for future stages. Unsupported cases outside the agreed subset can use the
+existing clear error mechanism; approved behavior must still be preserved.
+
+The Detailed Planner uses Sol at **medium** effort and translates each stage into
+concise instructions, aiming for 200–400 words. It performs targeted source reads
+and looks up only specific missing facts, instead of repeating broad research or
+writing another architecture report. Repairs translate the reviewer findings
+into correction instructions without replanning the stage.
+
+Detailed planning and implementation receive the stage's objective and acceptance
+criteria, the approved question/answer pairs, and any repair findings directly in
+their prompts. The Implementer also receives its instructions inline. Full
+documents remain accessible for specific ambiguities or dependencies; agents are
+not required to reread everything for each step. The Implementer completes the
+step and stops. Small stage sizes and both reviewers' existing rules are retained.
+
+These instructions apply to newly launched sessions. An already-running process
+keeps its loaded prompts, and resume preserves completed plans and agent results.
+Pause and restart with `--resume` to load the updated prompts for future sessions;
+this does not automatically rewrite or reduce an already-approved plan's scope.
+
 ## Architectural decisions during implementation
 
 A Detailed Planner requiring a decision, an Implementer returning BLOCKED, or a
@@ -170,7 +196,7 @@ separate invocation of the High-Level Planner, with the same default model.
 | Researcher | GPT-6.1 Sol | high |
 | High-level planner / impact assessment | GPT-6 Astra | high |
 | Design questions | GPT-6.1 Sol | medium |
-| Detailed planner | GPT-6.1 Sol | high |
+| Detailed planner | GPT-6.1 Sol | medium |
 | Implementer | GPT-6.1 Sol | selected by the detailed planner |
 | Mini reviewer | GPT-6.1 Sol | medium |
 | Final reviewer | GPT-6 Astra | xhigh |
