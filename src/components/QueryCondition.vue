@@ -26,6 +26,12 @@ const operatorLabel = computed(() =>
     : props.condition.operatorId,
 )
 
+// Count every configured Elasticsearch row, including Off and zero values.
+const parameterCount = computed(() => queryStore.database === 'elasticsearch'
+  ? props.condition.parameters?.length ?? 0
+  : 0,
+)
+
 // Show the optional function around the field name while preserving the empty-field prompt.
 const fieldLabel = computed(() => {
   const { name, modifier } = props.condition.field
@@ -105,7 +111,13 @@ const emit = defineEmits<{
       </span>
       <template v-else>
         <span class="condition-field">{{ fieldLabel }}</span>
-        <span class="condition-operator">{{ operatorLabel }}</span>
+        <span class="condition-operator">
+          {{ operatorLabel }}<span
+            v-if="parameterCount"
+            role="img"
+            :aria-label="`${parameterCount} optional ${parameterCount === 1 ? 'parameter' : 'parameters'} configured`"
+          >{{ '*'.repeat(parameterCount) }}</span>
+        </span>
         <span v-if="condition.value.hasValue" class="condition-value">
           {{ valueLabel }}
         </span>

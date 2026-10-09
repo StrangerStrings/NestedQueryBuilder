@@ -1,6 +1,7 @@
-import type { ConditionValue, QueryCondition } from '../../../types/query'
+import type { ConditionValue, ElasticsearchConditionParameter, QueryCondition } from '../../../types/query'
 import { createId } from '../../../utils/createId'
-import { validateElasticsearchCondition, validateElasticsearchFieldName } from '../validation'
+import { getElasticsearchParameterNames, type ElasticsearchParameterName } from '../parameters'
+import { validateElasticsearchCondition, validateElasticsearchFieldName, validateElasticsearchParameters } from '../validation'
 import { JsonSourceError, validateQueryNumber, type JsonSourceDocument } from './readJsonSource'
 
 export type ImportLeafConditionResult =
@@ -14,7 +15,7 @@ function memberPath(path: string, key: string): string {
   return `${path}[${JSON.stringify(key)}]`
 }
 
-// Convert a leaf only; callers must establish an allowed filter context before importing it.
+// Import a leaf and its explicit parameters; callers must establish an allowed filter context.
 export function importLeafCondition(document: JsonSourceDocument, clausePath: string): ImportLeafConditionResult {
   // Attach failures to the original value range, including escaped source spellings.
   function sourceError(kind: JsonSourceError['kind'], message: string, path: string): JsonSourceError {
@@ -57,6 +58,23 @@ export function importLeafCondition(document: JsonSourceDocument, clausePath: st
     fail('unsupported-value', 'Expected a string, number or Boolean query value.', path)
   }
 
+  // Normalize supported spellings after source-number validation and report failures at the parameter.
+  function parameter(name: ElasticsearchParameterName, input: unknown, path: string, operatorId: string): ElasticsearchConditionParameter {
+    let value = typeof input === 'number' ? scalar(input, path) : input
+    if (name === 'operator' && (value === 'OR' || value === 'AND')) value = value.toLowerCase()
+    if (name === 'fuzziness' && typeof value === 'string') {
+      if (value.toUpperCase() === 'AUTO') value = 'AUTO'
+      else if (value === '0' || value === '1' || value === '2') value = Number(value)
+    }
+    const row = { name, value }
+    try {
+      validateElasticsearchParameters(operatorId, [row])
+    } catch (error) {
+      fail('unsupported-value', error instanceof Error ? error.message : 'Unsupported Elasticsearch parameter value.', path)
+    }
+    return row as ElasticsearchConditionParameter
+  }
+
   // Create a Text, Number or Boolean value without inferring dates or coercing strings.
   function conditionValue(values: Scalar[], shape: 'single' | 'list' | 'range'): ConditionValue {
     const first = values[0]!
@@ -83,6 +101,7 @@ export function importLeafCondition(document: JsonSourceDocument, clausePath: st
     let valuePath: string
     let operatorId = clauseName
     let value: ConditionValue
+    let parameters: ElasticsearchConditionParameter[] | undefined
 
     if (clauseName === 'exists') {
       onlyMembers(body, ['field'], bodyPath)
@@ -136,12 +155,19 @@ export function importLeafCondition(document: JsonSourceDocument, clausePath: st
         if (input !== null && typeof input === 'object' && !Array.isArray(input)) {
           const options = object(input, fieldPath)
           const member = clauseName === 'match' || clauseName === 'match_phrase' ? 'query' : 'value'
-          onlyMembers(options, [member], fieldPath)
+          const supported = getElasticsearchParameterNames(clauseName)
+          onlyMembers(options, [member, ...supported], fieldPath)
           if (!Object.prototype.hasOwnProperty.call(options, member)) {
-            fail('unsupported-expression', `The object form requires exactly its ${member} member.`, fieldPath)
+            fail('unsupported-expression', `The object form requires its ${member} member.`, fieldPath)
           }
           valuePath = memberPath(fieldPath, member)
           literal = options[member]
+          for (const key of Object.keys(options)) {
+            if (key === member) continue
+            const row = parameter(key as ElasticsearchParameterName, options[key], memberPath(fieldPath, key), clauseName)
+            parameters ??= []
+            parameters.push(row)
+          }
         }
         value = conditionValue([scalar(literal, valuePath)], 'single')
       }
@@ -158,6 +184,7 @@ export function importLeafCondition(document: JsonSourceDocument, clausePath: st
       field: { name: fieldName, modifier: null },
       operatorId,
       value,
+      ...(parameters ? { parameters } : {}),
     }
     try {
       validateElasticsearchCondition(condition)

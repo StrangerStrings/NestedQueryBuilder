@@ -2,7 +2,7 @@ import type { SqlResult } from '../../../types/databaseAdapter'
 import type { QueryCondition } from '../../../types/query'
 import { resolveElasticsearchOperator, validateElasticsearchCondition } from '../validation'
 
-// Validate a complete condition and serialize its standalone Query DSL clause without coercion.
+// Validate a complete condition and serialize its clause with every explicitly configured parameter.
 export function generateElasticsearchConditionSql(condition: QueryCondition): SqlResult {
   let nodeId: string | undefined
   try {
@@ -13,12 +13,21 @@ export function generateElasticsearchConditionSql(condition: QueryCondition): Sq
     const operator = resolveElasticsearchOperator(condition.operatorId)
     const field = condition.field.name
     const value = condition.value.hasValue ? condition.value.value : undefined
+    let fieldValue: unknown = value
+    if (condition.parameters?.length) {
+      const member = operator.id === 'match' || operator.id === 'match_phrase' ? 'query' : 'value'
+      const options: Record<string, unknown> = { [member]: value }
+      for (const parameter of condition.parameters) {
+        options[parameter.name] = parameter.value
+      }
+      fieldValue = options
+    }
     let clause: Record<string, unknown>
 
     switch (operator.id) {
       case 'term':
       case 'not_term':
-        clause = { term: { [field]: value } }
+        clause = { term: { [field]: fieldValue } }
         break
       case 'terms':
       case 'not_terms':
@@ -44,7 +53,7 @@ export function generateElasticsearchConditionSql(condition: QueryCondition): Sq
       case 'match_phrase':
       case 'prefix':
       case 'wildcard':
-        clause = { [operator.id]: { [field]: value } }
+        clause = { [operator.id]: { [field]: fieldValue } }
         break
     }
 

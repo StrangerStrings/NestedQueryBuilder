@@ -2,6 +2,7 @@ import type { DatabaseOperator, ValueDataType } from '../../types/databaseOperat
 import type { ConditionField, ConditionValue, QueryCondition } from '../../types/query'
 import { isValidTemporal } from '../../utils/temporalValue'
 import { elasticsearchOperators, type ElasticsearchOperator } from './operators'
+import { getElasticsearchParameterNames } from './parameters'
 
 // Resolve only explicit catalogue IDs for subsequent Elasticsearch query handling.
 export function resolveElasticsearchOperator(operatorId: string): ElasticsearchOperator {
@@ -71,7 +72,36 @@ export function validateElasticsearchValue(operatorId: string, value: ConditionV
   }
 }
 
-// Reject Raw SQL and validate a structured condition before generating or importing Query DSL.
+// Require unique supported rows and canonical values, including complete nonnegative integer slop.
+export function validateElasticsearchParameters(operatorId: string, parameters: unknown): void {
+  if (parameters === undefined) return
+  if (!Array.isArray(parameters)) throw new Error('Elasticsearch parameters must be a row array.')
+
+  const supported = getElasticsearchParameterNames(operatorId)
+  const names = new Set<string>()
+  for (const parameter of parameters) {
+    if (
+      !parameter || typeof parameter !== 'object' || Array.isArray(parameter) ||
+      !Object.prototype.hasOwnProperty.call(parameter, 'name') ||
+      !Object.prototype.hasOwnProperty.call(parameter, 'value') ||
+      Object.keys(parameter).length !== 2
+    ) {
+      throw new Error('Each Elasticsearch parameter requires a name and value.')
+    }
+    const { name, value } = parameter
+    if (!supported.includes(name)) throw new Error(`Unsupported Elasticsearch parameter for ${operatorId}.`)
+    if (names.has(name)) throw new Error(`Duplicate Elasticsearch parameter: ${name}.`)
+    names.add(name)
+
+    if (name === 'operator' && (value === 'or' || value === 'and')) continue
+    if (name === 'fuzziness' && (value === 'AUTO' || value === 0 || value === 1 || value === 2)) continue
+    if (name === 'slop' && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) continue
+    if (name === 'case_insensitive' && typeof value === 'boolean') continue
+    throw new Error(`Invalid Elasticsearch ${name} parameter value.`)
+  }
+}
+
+// Reject Raw SQL and validate a structured condition and its parameters at the Query DSL boundary.
 export function validateElasticsearchCondition(condition: QueryCondition): void {
   if (!condition || typeof condition !== 'object' || Array.isArray(condition) || condition.kind !== 'condition') {
     throw new Error('Elasticsearch requires a structured condition.')
@@ -79,4 +109,5 @@ export function validateElasticsearchCondition(condition: QueryCondition): void 
   if ('rawSql' in condition) throw new Error('Raw SQL is unsupported in Elasticsearch conditions.')
   validateElasticsearchField(condition.field)
   validateElasticsearchValue(condition.operatorId, condition.value)
+  validateElasticsearchParameters(condition.operatorId, condition.parameters)
 }

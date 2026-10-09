@@ -36,7 +36,25 @@ A condition preview is a standalone clause, for example `{"term":{"status":"onli
 
 Negative operators wrap the positive clause in `bool.must_not`. They can match missing fields; add an `exists` condition if indexed presence is required. Exists concerns indexed values rather than `_source` presence. Null and empty arrays normally lack indexed values; empty strings can have them. Indexing exclusions and mapping settings such as null substitution affect this behavior.
 
-Term/terms, prefix and wildcard operate on indexed terms without analyzing supplied text; case and matching depend on mapping/indexed terms. Match and match_phrase use field analysis and Elasticsearch defaults. No analyzer options, boost, fuzziness, case-insensitive options or other unmodeled settings are accepted. Primitive shorthand and the sole `value` (or `query` for match/phrase) object member are supported on the applicable leaves; terms lookup is excluded.
+Term/terms, prefix and wildcard operate on indexed terms without analyzing supplied text; matching depends on mapping/indexed terms. Match and match_phrase use field analysis. Omitted parameters are left to Elasticsearch defaults. Primitive shorthand remains supported. Object forms require `value` (or `query` for match/phrase) and may include only the supported parameters below; terms lookup is excluded.
+
+| Editor operators | Optional parameters | Editor choices / canonical JSON values |
+| --- | --- | --- |
+| Analyzed match | `operator`, `fuzziness` | Any / All → `"or"` / `"and"`; Auto / 0 / 1 / 2 → `"AUTO"` / `0` / `1` / `2` |
+| Analyzed phrase | `slop` | Nonnegative safe integer number |
+| Exact term / not exact term, indexed term prefix / wildcard | `case_insensitive` | On / Off → `true` / `false` |
+
+Parameters are stored as unique rows alongside each condition's operator and value. Multiple supported parameters can be configured on match. The editor starts the first supported row when expanded: Any for `operator`, Auto for `fuzziness`, 0 for `slop`, and Off for `case_insensitive`. These are explicit row values, not values inserted for omitted parameters. Changing a parameter selection resets it to its starting value. The add button selects the first unused parameter and is disabled when every supported parameter is present. Changing the condition operator removes unsupported rows.
+
+The **Optional Parameters** settings control appears only for these Elasticsearch operators, including not exact term. Configured conditions reopen expanded. Closing the details panel, selecting another condition or navigating away preserves parameters. **Collapsing clears all parameters**; reopening starts a fresh first row. Slop uses a numeric input with minimum 0 and step 1, prevents letters, and stores blank, unfinished or invalid input as an invalid draft. Generation is blocked until the draft is corrected or removed; values are not rounded, clamped or restored on blur. Native controls provide keyboard operation, labels, expanded and Boolean state, visible focus, and focus transfer after a focused row is removed. Each configured row adds exactly one `*` beside the displayed operator, including Off and zero, without visible parameter summaries.
+
+Import accepts lowercase `or`/`and` and uppercase `OR`/`AND`, case variants of `AUTO`, and numeric or string `0`/`1`/`2` fuzziness. Export normalizes these to lowercase `or`/`and`, uppercase `AUTO` and numeric fuzziness. Explicit false and zero are preserved. For example, a configured match may generate:
+
+```json
+{"query":{"bool":{"filter":[{"match":{"message":{"query":"quick fox","operator":"and","fuzziness":"AUTO"}}}]}}}
+```
+
+Analyzer options, boost, custom fuzziness thresholds, parameters on terms/list operators and all other unmodeled settings remain unsupported. Invalid imported parameters fail rather than being dropped. Negated term queries retain `case_insensitive` inside their term clause.
 
 Between remains **one range**, so one indexed value must satisfy both bounds. For a field containing `[5, 25]`, an inclusive range 10–20 does not become two separate comparisons satisfied by different values. Imported ranges allow one bound or exactly the inclusive `gte`/`lte` pair; mixed/exclusive two-bound forms and range options are unsupported. Bounds are preserved without reordering or evaluation.
 

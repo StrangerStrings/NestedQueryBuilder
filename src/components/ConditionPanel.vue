@@ -3,14 +3,18 @@ import { computed, ref, useId, watch } from 'vue'
 import ConditionFieldInput from './ConditionFieldInput.vue'
 import ConditionOperatorInput from './ConditionOperatorInput.vue'
 import ConditionValueInput from './ConditionValueInput/ConditionValueInput.vue'
+import ElasticsearchParameterEditor from './ElasticsearchParameterEditor.vue'
 import QueryDisplay from './QueryDisplay.vue'
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
 import { rawConditionColour } from '../colours/palette'
+import { getElasticsearchParameterNames } from '../databases/elasticsearch/parameters'
 
 const queryStore = useQueryStore()
 const rawConditionId = useId()
 const editorError = ref<string | null>(null)
+const parameterEditorId = useId()
+const parametersExpanded = ref(false)
 
 const props = defineProps<{
   condition: QueryCondition
@@ -26,6 +30,41 @@ const editingMode = computed(() => props.condition.rawSql === undefined ? 'edito
 const selectedOperator = computed(() =>
   queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
 )
+
+// Offer parameters only for supported Elasticsearch operators.
+const supportsParameters = computed(() =>
+  queryStore.database === 'elasticsearch' &&
+  getElasticsearchParameterNames(props.condition.operatorId).length > 0,
+)
+
+// Reopen configured conditions without changing their stored rows.
+watch(
+  // Track selection, operator transitions and database changes.
+  () => [props.condition.id, props.condition.operatorId, queryStore.database],
+  // Reflect the parameters retained by the store after a transition.
+  () => {
+    parametersExpanded.value = supportsParameters.value && !!props.condition.parameters?.length
+  },
+  { immediate: true },
+)
+
+// Expand for parameters imported into the currently selected condition.
+watch(
+  // Observe configured rows without treating their values as Boolean flags.
+  () => props.condition.parameters?.length ?? 0,
+  // Keep an empty editor open after removing its last row.
+  (count) => {
+    if (count > 0 && supportsParameters.value) parametersExpanded.value = true
+  },
+)
+
+// Clear stored parameters only when the user explicitly collapses the editor.
+function toggleParameters() {
+  if (parametersExpanded.value) {
+    queryStore.updateCondition(props.condition.id, { parameters: [] })
+  }
+  parametersExpanded.value = !parametersExpanded.value
+}
 
 // Generate the selected condition's standalone clause directly with adapter validation.
 const conditionSql = computed(() => {
@@ -170,6 +209,30 @@ const emit = defineEmits<{
         @type-change="queryStore.changeConditionValueType(condition.id, $event)"
         :operator="selectedOperator"
       />
+      <div v-if="supportsParameters" class="optional-parameters">
+        <button
+          type="button"
+          class="parameters-control"
+          :class="{ 'is-expanded': parametersExpanded }"
+          :aria-expanded="parametersExpanded"
+          :aria-controls="parameterEditorId"
+          :aria-describedby="`${parameterEditorId}-description`"
+          @click="toggleParameters"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+          Optional Parameters
+        </button>
+        <div :id="parameterEditorId" v-show="parametersExpanded">
+          <ElasticsearchParameterEditor
+            v-if="parametersExpanded"
+            :key="condition.id"
+            :condition="condition"
+          />
+        </div>
+        <p :id="`${parameterEditorId}-description`" class="parameters-description">
+          Collapsing clears all parameters
+        </p>
+      </div>
     </template>
     <section class="condition-preview" :aria-label="`Condition ${outputLabel} preview`">
       <h4>Generated {{ queryStore.adapter.label }}{{ queryStore.adapter.presentation ? ` ${outputLabel}` : '' }}</h4>
@@ -270,6 +333,38 @@ const emit = defineEmits<{
 
 button .material-symbols-outlined {
   font-size: 1.125rem;
+}
+
+.optional-parameters {
+  margin-top: 1.5rem;
+}
+
+.parameters-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.parameters-control.is-expanded {
+  color: #172033;
+}
+
+.parameters-control:focus-visible {
+  outline: 2px solid #172033;
+  outline-offset: 2px;
+}
+
+.parameters-description {
+  margin: 0.5rem 0 0;
+  color: #5b6472;
+  font-size: 0.75rem;
 }
 
 .raw-condition-input {

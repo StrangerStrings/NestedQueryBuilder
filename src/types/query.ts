@@ -53,6 +53,13 @@ export type ConditionField = {
   modifier: FieldModifier | null
 }
 
+/** A configured Elasticsearch parameter; slop strings retain unfinished or invalid editor input. */
+export type ElasticsearchConditionParameter =
+  | { name: 'operator'; value: 'or' | 'and' }
+  | { name: 'fuzziness'; value: 'AUTO' | 0 | 1 | 2 }
+  | { name: 'slop'; value: number | string }
+  | { name: 'case_insensitive'; value: boolean }
+
 /** A leaf in the query tree that applies an operator to a field. */
 export type QueryCondition = {
   kind: 'condition'
@@ -62,6 +69,7 @@ export type QueryCondition = {
   field: ConditionField
   operatorId: string
   value: ConditionValue
+  parameters?: ElasticsearchConditionParameter[]
 }
 
 /** A group that combines conditions or nested groups. */

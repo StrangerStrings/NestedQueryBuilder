@@ -7,13 +7,13 @@ export const elasticsearchOperators = [
   {
     id: 'term' as const,
     label: 'exact term',
-    description: 'Matches an exact indexed term without analyzing the supplied value. Text matching depends on the indexed terms, including case.',
+    description: 'Matches an exact indexed term without analyzing the supplied value. Optional case_insensitive enables case-insensitive matching; omission uses Elasticsearch defaults. Matching still depends on the indexed terms.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: exactTypes },
   },
   {
     id: 'not_term' as const,
     label: 'not exact term',
-    description: 'Excludes documents matching the exact indexed term without analyzing the supplied value. Documents with a missing field can match.',
+    description: 'Excludes documents matching the exact indexed term without analyzing the supplied value. Optional case_insensitive enables case-insensitive matching; omission uses Elasticsearch defaults. Documents with a missing field can match.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: exactTypes },
   },
   {
@@ -79,25 +79,25 @@ export const elasticsearchOperators = [
   {
     id: 'match' as const,
     label: 'analyzed match',
-    description: 'Analyzes the supplied text using the field analyzer and matches the resulting terms with Elasticsearch defaults, rather than matching an exact term.',
+    description: 'Analyzes the supplied text using the field analyzer and matches the resulting terms. Optional operator selects Any or All words; fuzziness accepts Auto, 0, 1 or 2. Omitted parameters use Elasticsearch defaults.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
     id: 'match_phrase' as const,
     label: 'analyzed phrase',
-    description: 'Analyzes the supplied text and matches the resulting phrase in term order using Elasticsearch defaults, rather than matching an exact term.',
+    description: 'Analyzes the supplied text and matches the resulting phrase. Optional slop controls allowed position distance and must be a nonnegative safe integer. Omission uses Elasticsearch defaults.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
     id: 'prefix' as const,
     label: 'indexed term prefix',
-    description: 'Matches indexed terms beginning with the supplied prefix without analyzing it. Matching depends on the indexed terms, including case.',
+    description: 'Matches indexed terms beginning with the supplied prefix without analyzing it. Optional case_insensitive enables case-insensitive matching; omission uses Elasticsearch defaults. Matching still depends on the indexed terms.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
     id: 'wildcard' as const,
     label: 'indexed term wildcard',
-    description: 'Matches indexed terms with Elasticsearch wildcard syntax: * matches zero or more characters and ? matches one character. The pattern is not analyzed; matching depends on the indexed terms, including case.',
+    description: 'Matches indexed terms with Elasticsearch wildcard syntax: * matches zero or more characters and ? matches one character. The pattern is not analyzed. Optional case_insensitive enables case-insensitive matching; omission uses Elasticsearch defaults.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
 ] satisfies DatabaseOperator[]

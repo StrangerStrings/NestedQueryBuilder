@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { ConditionValue, QueryCondition, QueryGroup } from '../types/query'
 import type { DatabaseOperator, ValueDataType } from '../types/databaseOperator'
 import { databaseDefinitions } from '../databases/DatabaseDefinitions'
+import { getElasticsearchParameterNames } from '../databases/elasticsearch/parameters'
 import {
   assignFieldColours,
   assignConditionColours,
@@ -261,7 +262,7 @@ export const useQueryStore = defineStore('query', () => {
     { immediate: true, flush: 'pre' },
   )
 
-  // Convert before applying the operator and value together, leaving unsupported requests unchanged.
+  // Convert operator values and discard incompatible Elasticsearch parameters on a successful change.
   function changeConditionOperator(conditionId: string, operatorId: string): boolean {
     const condition = findConditionById(query.value, conditionId)
     const operator = operators.value.find((candidate) => candidate.id === operatorId)
@@ -271,6 +272,10 @@ export const useQueryStore = defineStore('query', () => {
     if (value === undefined) return false
 
     Object.assign(condition, { operatorId, value })
+    if (database.value === 'elasticsearch' && condition.parameters !== undefined) {
+      const supported = getElasticsearchParameterNames(operatorId)
+      condition.parameters = condition.parameters.filter((parameter) => supported.includes(parameter.name))
+    }
     return true
   }
 
@@ -286,10 +291,10 @@ export const useQueryStore = defineStore('query', () => {
     if (value !== undefined) condition.value = value
   }
 
-  // Enforce adapter capabilities before applying fields, raw text, or operator/value edits.
+  // Apply supported condition edits, filtering combined Elasticsearch operator/parameter updates.
   function updateCondition(
     conditionId: string,
-    updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value' | 'rawSql'>>,
+    updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value' | 'rawSql' | 'parameters'>>,
   ) {
     const condition = findConditionById(query.value, conditionId)
     if (!condition) return
@@ -308,6 +313,13 @@ export const useQueryStore = defineStore('query', () => {
     }
 
     if (updates.field !== undefined) condition.field = updates.field
+    if (database.value === 'elasticsearch' && 'parameters' in updates) {
+      condition.parameters = updates.parameters
+      if (updates.operatorId !== undefined && condition.parameters !== undefined) {
+        const supported = getElasticsearchParameterNames(condition.operatorId)
+        condition.parameters = condition.parameters.filter((parameter) => supported.includes(parameter.name))
+      }
+    }
   }
 
   // Resolve the condition's saved shade in the family associated with its field.
