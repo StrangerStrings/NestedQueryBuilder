@@ -12,6 +12,8 @@ The Simple Icons license is included in `LICENSE.md`. Brand names and logos rema
 
 `elasticsearch.svg` was downloaded unchanged on 2026-10-08 from the [Simple Icons Elasticsearch SVG source](https://github.com/simple-icons/simple-icons/blob/develop/icons/elasticsearch.svg), using [the raw develop URL](https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/elasticsearch.svg). It is imported as a local asset without runtime external image requests. The [Simple Icons CC0 1.0 Universal license](https://raw.githubusercontent.com/simple-icons/simple-icons/develop/LICENSE.md) and the existing `LICENSE.md` notice apply. The database button displays the name beside the decorative image and supplies its accessible name through `aria-label`.
 
+`mongodb.svg` was downloaded unchanged on 2026-10-09 from the [Simple Icons MongoDB SVG source](https://github.com/simple-icons/simple-icons/blob/develop/icons/mongodb.svg), using [the raw develop URL](https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/mongodb.svg). It is imported as a local asset without runtime external image requests. The [Simple Icons CC0 1.0 Universal license](https://raw.githubusercontent.com/simple-icons/simple-icons/develop/LICENSE.md) and the existing `LICENSE.md` notice apply. Brand names and logos remain trademarks of their respective owners. The database button retains its accessible name through `aria-label` and displays the icon as a decorative image with `alt=""`.
+
 Import an asset in Vue and provide alternative text when displaying it:
 
 ```vue
