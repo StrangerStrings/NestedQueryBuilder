@@ -128,16 +128,16 @@ async function copySql() {
 .sql-preview button {
   justify-self: start;
   padding: 0.75rem 1rem;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
-  color: #5b6472;
-  background: #ffffff;
+  color: var(--text-muted);
+  background: var(--surface-button);
   cursor: pointer;
 }
 
 .generation-error {
   margin: 0;
-  color: #b42318;
+  color: var(--text-error);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -145,7 +145,7 @@ async function copySql() {
 .sql-preview {
   display: grid;
   gap: 0.5rem;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.875rem;
 }
 
@@ -165,7 +165,7 @@ async function copySql() {
 }
 
 .sql-preview button:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--focus-ring-accent);
   outline-offset: 2px;
 }
 
@@ -174,6 +174,6 @@ async function copySql() {
 }
 
 .copy-error {
-  color: #b42318;
+  color: var(--text-error);
 }
 </style>

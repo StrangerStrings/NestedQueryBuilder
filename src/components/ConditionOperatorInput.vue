@@ -69,7 +69,7 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
   display: grid;
   gap: 0.5rem;
   margin-top: 2rem;
-  color: #172033;
+  color: var(--text-primary);
   font-size: 0.875rem;
 }
 
@@ -86,7 +86,7 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
 }
 
 .operator-info {
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 1.125rem;
   cursor: help;
 }
@@ -101,9 +101,9 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
   box-sizing: border-box;
   padding: 0.6rem 0.75rem;
   border-radius: 4px;
-  background: #172033;
-  color: #fff;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  background: var(--surface-tooltip);
+  color: var(--text-tooltip);
+  box-shadow: 0 4px 12px var(--shadow-tooltip);
   font-size: 0.8125rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -124,9 +124,9 @@ select {
   min-width: 0;
   width: 100%;
   padding: 0.45rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface-input);
   color: inherit;
   font: inherit;
 }

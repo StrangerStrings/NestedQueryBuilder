@@ -72,10 +72,10 @@ function selectDatabase(database: DatabaseId) {
   gap: 0.5rem;
   margin: 0 0 2rem;
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-notice);
   border-radius: 0.5rem;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--surface-notice);
+  color: var(--text-secondary);
 }
 
 .database-grid {
@@ -96,7 +96,7 @@ function selectDatabase(database: DatabaseId) {
   padding: 1rem 0.75rem;
   border: 0;
   border-radius: 0.75rem;
-  background: #f3f4f6;
+  background: var(--surface-database);
   color: inherit;
   font: inherit;
   font-size: 1rem;
@@ -107,6 +107,11 @@ function selectDatabase(database: DatabaseId) {
 .database-button img {
   max-width: 100%;
   object-fit: contain;
+}
+
+/* The database assets use monochrome black paths; preserve their shapes on dark surfaces. */
+:global(:root[data-theme='dark'] .database-button img) {
+  filter: invert(1);
 }
 
 .database-name {
@@ -121,15 +126,15 @@ function selectDatabase(database: DatabaseId) {
 }
 
 .database-button:hover {
-  background: #e5e7eb;
+  background: var(--surface-database-hover);
 }
 
 .database-button[aria-pressed='true'] {
-  background: #d1d5db;
+  background: var(--surface-database-selected);
 }
 
 .database-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 5px #6b7280;
+  box-shadow: 0 0 0 3px var(--focus-ring-gap), 0 0 0 5px var(--focus-ring-database);
 }
 </style>

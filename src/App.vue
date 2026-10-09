@@ -70,8 +70,8 @@ watch(
 
 .app-shell {
   min-height: 100vh;
-  color: #172033;
-  background: white;
+  color: var(--text-primary);
+  background: var(--surface-page);
   font-family: inherit;
 }
 
@@ -83,8 +83,8 @@ watch(
   align-items: center;
   gap: 2rem;
   overflow-x: auto;
-  background: #ebebf3;
-  border-bottom: 1px solid #d9dee7;
+  background: var(--surface-navigation);
+  border-bottom: 1px solid var(--border-panel);
 }
 
 .main-content {

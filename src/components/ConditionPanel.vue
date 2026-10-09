@@ -6,11 +6,13 @@ import ConditionValueInput from './ConditionValueInput/ConditionValueInput.vue'
 import ElasticsearchParameterEditor from './ElasticsearchParameterEditor.vue'
 import QueryDisplay from './QueryDisplay.vue'
 import { useQueryStore } from '../stores/queryStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import type { QueryCondition } from '../types/query'
-import { rawConditionColour } from '../colours/palette'
+import { resolveConditionColourAppearance } from '../colours/palette'
 import { getElasticsearchParameterNames } from '../databases/elasticsearch/parameters'
 
 const queryStore = useQueryStore()
+const settingsStore = useSettingsStore()
 const rawConditionId = useId()
 const editorError = ref<string | null>(null)
 const parameterEditorId = useId()
@@ -119,24 +121,28 @@ function openVisualEditor() {
   editorError.value = queryStore.editRawCondition(props.condition.id)
 }
 
-// Match the condition's border, using dedicated purple styling for Raw mode.
-const borderColour = computed(() =>
-  props.condition.rawSql !== undefined
-    ? rawConditionColour.accent
-    : !props.condition.field.name.trim() || !selectedOperator.value
-      ? '#9ca3af'
-      : queryStore.getConditionColour(props.condition)?.accent ?? '#94a3b8',
-)
+// Match the card's validation treatment without changing generation or editor feedback.
+const isInvalid = computed(() => {
+  const result = queryStore.whereSqlResult
+  return (!result.success && result.nodeId === props.condition.id) || !conditionSql.value.success
+})
 
-// Use a lighter condition background tint without fading the panel's contents.
+// Resolve the panel appearance through the same policy as the selected card.
+const conditionColour = computed(() => {
+  return resolveConditionColourAppearance(
+    queryStore.getConditionColour(props.condition),
+    settingsStore.resolvedTheme,
+    props.condition.rawSql !== undefined,
+    isInvalid.value,
+  )
+})
+
+// Retain the card's decorative accent around the panel and preview section.
+const borderColour = computed(() => conditionColour.value.accent)
+
+// Blend the palette or themed neutral background without fading the panel's contents.
 const backgroundColour = computed(() => {
-  const colour =
-    props.condition.rawSql !== undefined
-      ? rawConditionColour.background
-      : !props.condition.field.name.trim() || !selectedOperator.value
-        ? '#f3f4f6'
-        : queryStore.getConditionColour(props.condition)?.background ?? '#f8fafc'
-  return `color-mix(in srgb, ${colour} 25%, transparent)`
+  return `color-mix(in srgb, ${conditionColour.value.background} 25%, transparent)`
 })
 
 const emit = defineEmits<{
@@ -268,9 +274,9 @@ const emit = defineEmits<{
   max-width: 100%;
   box-sizing: border-box;
   padding: 1rem;
-  border: 4px solid #d9dee7;
+  border: 4px solid var(--border-panel);
   border-radius: 22px;
-  background: #fff;
+  background: var(--surface-panel);
 }
 
 .panel-header {
@@ -288,8 +294,8 @@ const emit = defineEmits<{
 .editing-mode button {
   flex: 1;
   padding: 0.45rem;
-  border: 1px solid #c5ccd8;
-  background: #e8eef9;
+  border: 1px solid var(--border-control);
+  background: var(--surface-control);
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -305,7 +311,7 @@ const emit = defineEmits<{
 }
 
 .editing-mode button:hover {
-  background: #f3f6fa;
+  background: var(--surface-control-hover);
 }
 
 .editing-mode button:disabled {
@@ -314,13 +320,13 @@ const emit = defineEmits<{
 }
 
 .editing-mode button[aria-pressed='true'] {
-  background: #fff;
+  background: var(--surface-control-selected);
   font-weight: 600;
 }
 
 .editing-mode button:focus-visible {
   position: relative;
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -330,8 +336,13 @@ const emit = defineEmits<{
   justify-content: center;
   border: 0;
   background: transparent;
-  color: #5b6472;
+  color: var(--text-muted);
   cursor: pointer;
+}
+
+.panel-close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 button .material-symbols-outlined {
@@ -349,24 +360,24 @@ button .material-symbols-outlined {
   padding: 0.25rem 0;
   border: 0;
   background: transparent;
-  color: #6b7280;
+  color: var(--text-control-muted);
   font: inherit;
   font-size: 0.875rem;
   cursor: pointer;
 }
 
 .parameters-control.is-expanded {
-  color: #172033;
+  color: var(--text-primary);
 }
 
 .parameters-control:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .parameters-description {
   margin: 0.5rem 0 0;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.75rem;
 }
 
@@ -374,7 +385,7 @@ button .material-symbols-outlined {
   display: grid;
   gap: 0.5rem;
   margin-top: 1rem;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.875rem;
 }
 
@@ -382,10 +393,10 @@ button .material-symbols-outlined {
   width: 100%;
   box-sizing: border-box;
   padding: 0.65rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: #fff;
-  color: #172033;
+  background: var(--surface-input);
+  color: var(--text-primary);
   font-family: monospace;
   font-size: inherit;
   line-height: 1.5;
@@ -393,7 +404,7 @@ button .material-symbols-outlined {
 }
 
 .raw-condition-input textarea:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -407,7 +418,7 @@ button .material-symbols-outlined {
   margin: 0 0 0.5rem;
   font-size: 0.875rem;
   font-weight: normal;
-  color: v-bind(borderColour);
+  color: var(--text-primary);
 }
 
 .condition-preview p {
@@ -420,7 +431,7 @@ button .material-symbols-outlined {
 
 .condition-preview .condition-error {
   margin-top: 0.5rem;
-  color: #b42318;
+  color: var(--text-error);
   font-size: 0.8125rem;
 }
 
@@ -429,7 +440,7 @@ button .material-symbols-outlined {
 }
 
 .condition-error summary:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 

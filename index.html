@@ -2,6 +2,31 @@
 <html lang="">
   <head>
     <meta charset="UTF-8">
+    <script>
+      // Resolve appearance before styles and visible content, even when browser APIs fail.
+      (() => {
+        let preference = 'system'
+        try {
+          const storedPreference = localStorage.getItem('query-builder.theme')
+          if (['system', 'light', 'dark'].includes(storedPreference)) {
+            preference = storedPreference
+          }
+        } catch {
+          // Storage is optional; keep the default preference.
+        }
+        let appearance = preference === 'dark' ? 'dark' : 'light'
+        if (preference === 'system') {
+          try {
+            appearance = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          } catch {
+            // Browsers without appearance detection use light.
+          }
+        }
+        document.documentElement.dataset.themePreference = preference
+        document.documentElement.dataset.theme = appearance
+      })()
+    </script>
+    <link rel="stylesheet" href="/src/styles/theme.css">
     <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">

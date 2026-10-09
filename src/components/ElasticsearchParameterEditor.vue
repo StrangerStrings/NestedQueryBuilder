@@ -264,10 +264,10 @@ button {
   box-sizing: border-box;
   min-width: 0;
   padding: 0.45rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: #fff;
-  color: #172033;
+  background: var(--surface-input);
+  color: var(--text-primary);
   font: inherit;
 }
 
@@ -283,13 +283,13 @@ button {
 select:focus-visible,
 input:focus-visible,
 button:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .case-toggle[aria-checked='true'] {
-  background: #172033;
-  color: #fff;
+  background: var(--surface-control-strong-selected);
+  color: var(--text-control-strong-selected);
 }
 
 .icon-button {
@@ -312,13 +312,13 @@ button:disabled {
 }
 
 input[aria-invalid='true'] {
-  border-color: #b42318;
+  border-color: var(--border-error);
 }
 
 .parameter-error {
   grid-column: 1 / -1;
   margin: 0;
-  color: #b42318;
+  color: var(--text-error);
   overflow-wrap: anywhere;
 }
 </style>

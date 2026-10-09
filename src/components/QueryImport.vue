@@ -80,7 +80,7 @@ function importFilter() {
   display: grid;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.875rem;
 }
 
@@ -88,9 +88,10 @@ function importFilter() {
   width: 100%;
   box-sizing: border-box;
   padding: 0.65rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  color: #172033;
+  background: var(--surface-input);
+  color: var(--text-primary);
   font: inherit;
   resize: vertical;
 }
@@ -98,10 +99,10 @@ function importFilter() {
 .sql-import button {
   justify-self: start;
   padding: 0.75rem 1rem;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
-  color: #5b6472;
-  background: #ffffff;
+  color: var(--text-muted);
+  background: var(--surface-button);
   cursor: pointer;
 }
 
@@ -111,14 +112,14 @@ function importFilter() {
 
 .import-error {
   margin: 0;
-  color: #b42318;
+  color: var(--text-error);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .import-success {
   margin: 0;
-  color: #15803d;
+  color: var(--text-success);
 }
 
 .import-error code {

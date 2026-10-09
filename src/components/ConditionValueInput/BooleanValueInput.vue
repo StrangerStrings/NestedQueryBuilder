@@ -25,8 +25,8 @@ const emit = defineEmits<{
 button {
   flex: 1;
   padding: 0.45rem;
-  border: 1px solid #c5ccd8;
-  background: #e8eef9;
+  border: 1px solid var(--border-control);
+  background: var(--surface-control);
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -42,17 +42,17 @@ button:last-child {
 }
 
 button:hover {
-  background: #f3f6fa;
+  background: var(--surface-control-hover);
 }
 
 button[aria-pressed='true'] {
-  background: #fff;
+  background: var(--surface-control-selected);
   font-weight: 600;
 }
 
 button:focus-visible {
   position: relative;
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 </style>

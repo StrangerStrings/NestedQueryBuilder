@@ -322,7 +322,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
   display: grid;
   gap: 0.5rem;
   margin-top: 2rem;
-  color: #172033;
+  color: var(--text-primary);
   font-size: 0.875rem;
 }
 
@@ -354,24 +354,24 @@ button {
   padding: 0.45rem;
   border: 0;
   border-radius: 4px;
-  background: #e8eef9;
+  background: var(--surface-control);
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
 
 button:hover {
-  background: #f3f6fa;
+  background: var(--surface-control-hover);
 }
 
 button[aria-pressed='true'],
 button.temporal-selected,
 button[aria-checked='true'] {
-  background: #fff;
+  background: var(--surface-control-selected);
 }
 
 button:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -394,10 +394,10 @@ button .dropdown-arrow {
   z-index: 20;
   min-width: 10rem;
   padding: 0.25rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: #fff;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+  background: var(--surface-menu);
+  box-shadow: 0 4px 12px var(--shadow-menu);
 }
 
 .temporal-menu button {

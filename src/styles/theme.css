@@ -1,0 +1,147 @@
+/* Shared light appearance; condition palettes and syntax themes retain their own colours. */
+:root {
+  background: var(--surface-page);
+  color-scheme: light;
+  --surface-page: #fff;
+  --surface-panel: #fff;
+  --surface-navigation: #ebebf3;
+  --surface-input: #fff;
+  --surface-button: #fff;
+  /* Match the github-light syntax theme, including preview padding and fallback. */
+  --surface-preview: #fff;
+  --surface-menu: #fff;
+  --surface-help: #eef0f4;
+  --surface-notice: #f3f4f6;
+
+  --text-primary: #172033;
+  --text-muted: #5b6472;
+  --text-secondary: #4b5563;
+  --text-help-label: #687180;
+  --text-input-label: #737a86;
+  --text-control-muted: #6b7280;
+  --text-inactive: #a8b0bc;
+  /* Keep browser-provided light colours for previously unstyled native input states. */
+  --text-native-input: FieldText;
+  --text-placeholder: initial;
+  --text-disabled: GrayText;
+
+  --border-panel: #d9dee7;
+  --border-control: #c5ccd8;
+  --border-notice: #d1d5db;
+  --border-error: #b42318;
+  --accent-primary: #2563eb;
+  --text-error: #b42318;
+  --text-schema-error: #b91c1c;
+  --text-success: #15803d;
+
+  --focus-ring: #172033;
+  --focus-ring-accent: #2563eb;
+  --focus-ring-database: #6b7280;
+  --focus-ring-gap: #fff;
+  --surface-control: #e8eef9;
+  --surface-control-hover: #f3f6fa;
+  --surface-control-selected: #fff;
+  --surface-control-strong-selected: #172033;
+  --text-control-strong-selected: #fff;
+  --surface-suggestion-highlight: #e8eef9;
+  --surface-icon-hover: #eef1f5;
+  --surface-condition-action-hover: rgba(0, 0, 0, 0.06);
+
+  --surface-database: #f3f4f6;
+  --surface-database-hover: #e5e7eb;
+  --surface-database-selected: #d1d5db;
+  --surface-tooltip: #172033;
+  --text-tooltip: #fff;
+  --shadow-menu: rgb(0 0 0 / 12%);
+  --shadow-tooltip: rgb(0 0 0 / 15%);
+  --drag-indicator: #2563eb;
+  --shadow-drag: rgba(37, 99, 235, 0.2);
+
+  --condition-empty-surface: #f8fafc;
+  --condition-empty-accent: #94a3b8;
+  --condition-invalid-surface: #f3f4f6;
+  --condition-invalid-accent: #9ca3af;
+  --text-condition-warning: #4b5563;
+  --group-default-surface: #fff;
+  --group-default-border: #949eac;
+  --group-all-surface: #f6f7f8;
+  --group-all-border: #8a929d;
+  --group-none-surface: #e9ebee;
+  --group-none-border: #6e7581;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-page: #11151c;
+  --surface-panel: #1b2230;
+  --surface-navigation: #202738;
+  --surface-input: #141b26;
+  --surface-button: #263143;
+  /* Match the github-dark syntax theme, including preview padding and fallback. */
+  --surface-preview: #24292e;
+  --surface-menu: #252f40;
+  --surface-help: #202d3d;
+  --surface-notice: #2c2c36;
+
+  --text-primary: #e8edf5;
+  --text-muted: #bac4d3;
+  --text-secondary: #c4cddb;
+  --text-help-label: #b4c3d6;
+  --text-input-label: #b3bdcd;
+  --text-control-muted: #b2bdce;
+  --text-inactive: #8f9caf;
+  --text-native-input: #e8edf5;
+  --text-placeholder: #9ba8bb;
+  --text-disabled: #8f9caf;
+
+  --border-panel: #48566c;
+  --border-control: #65758d;
+  --border-notice: #626275;
+  --border-error: #ff9a91;
+  --accent-primary: #85b5ff;
+  --text-error: #ffaaa1;
+  --text-schema-error: #ffaaa1;
+  --text-success: #8ee0aa;
+
+  --focus-ring: #e8edf5;
+  --focus-ring-accent: #85b5ff;
+  --focus-ring-database: #b8c9e2;
+  --focus-ring-gap: #11151c;
+  --surface-control: #2c3b52;
+  --surface-control-hover: #36455c;
+  --surface-control-selected: #465d7d;
+  --surface-control-strong-selected: #a6caff;
+  --text-control-strong-selected: #111b2c;
+  --surface-suggestion-highlight: #405777;
+  --surface-icon-hover: #3b4a60;
+  --surface-condition-action-hover: rgb(255 255 255 / 12%);
+
+  --surface-database: #242d3c;
+  --surface-database-hover: #35445b;
+  --surface-database-selected: #465d7d;
+  --surface-tooltip: #dce6f5;
+  --text-tooltip: #172033;
+  --shadow-menu: rgb(0 0 0 / 45%);
+  --shadow-tooltip: rgb(0 0 0 / 40%);
+  --drag-indicator: #96c1ff;
+  --shadow-drag: rgb(133 181 255 / 50%);
+
+  --condition-empty-surface: #202a38;
+  --condition-empty-accent: #a0b3cc;
+  --condition-invalid-surface: #2d2d38;
+  --condition-invalid-accent: #b0aabd;
+  --text-condition-warning: #d0cbdc;
+  /* Borders also colour mode labels, so keep them bright against each group surface. */
+  --group-default-surface: #19212d;
+  --group-default-border: #94aac6;
+  --group-all-surface: #263141;
+  --group-all-border: #afbed2;
+  --group-none-surface: #363645;
+  --group-none-border: #c7bfd8;
+}
+
+input::placeholder,
+textarea::placeholder {
+  /* An unset light token preserves each browser's existing placeholder colour. */
+  color: var(--text-placeholder, revert);
+}

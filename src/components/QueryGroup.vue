@@ -332,22 +332,19 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
   border: 4px solid var(--group-border-color);
   border-radius: 36px;
   background: var(--group-background-color);
-  --group-border-color: #bcc4cf;
-  --group-border-color: #949eac;
-  --group-background-color: #fff;
-  --group-border-color: #949eac;
+  --group-border-color: var(--group-default-border);
+  --group-background-color: var(--group-default-surface);
 
 }
 
 .query-group.mode-all {
-  --group-border-color: #858e9b;
-  --group-border-color: #8a929d;
-  --group-background-color: #f6f7f8;  
+  --group-border-color: var(--group-all-border);
+  --group-background-color: var(--group-all-surface);
 }
 
 .query-group.mode-none {
-  --group-background-color: #e9ebee;
-  --group-border-color: #6e7581;
+  --group-background-color: var(--group-none-surface);
+  --group-border-color: var(--group-none-border);
 }
 
 .group-actions {
@@ -406,7 +403,7 @@ h3 {
 }
 
 .group-drag-handle:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -428,7 +425,7 @@ h3 {
   right: 0;
   height: 3px;
   border-radius: 2px;
-  background: #2563eb;
+  background: var(--drag-indicator);
   transform: translateY(-50%);
   pointer-events: none;
 }
@@ -447,15 +444,15 @@ h3 {
 
 .query-dragging > .query-group {
   opacity: 0.85;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 0 2px var(--shadow-drag);
 }
 
 button {
   padding: 0.35rem 0.6rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
   background: transparent;
-  color: #5b6472;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
@@ -469,13 +466,13 @@ button {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #5b6472;
+  color: var(--text-muted);
 }
 
 .icon-button:hover,
 .icon-button:focus-visible {
-  background: #eef1f5;
-  color: #172033;
+  background: var(--surface-icon-hover);
+  color: var(--text-primary);
 }
 
 .delete-group-button {

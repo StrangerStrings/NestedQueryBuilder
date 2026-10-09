@@ -81,8 +81,10 @@ function importSchema() {
   box-sizing: border-box;
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
+  background: var(--surface-input);
+  color: var(--text-native-input);
   font-family: monospace;
   font-size: 0.875rem;
   resize: vertical;
@@ -91,10 +93,10 @@ function importSchema() {
 .schema-form button {
   justify-self: start;
   padding: 0.75rem 1rem;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
-  color: #5b6472;
-  background: #ffffff;
+  color: var(--text-muted);
+  background: var(--surface-button);
   cursor: pointer;
 }
 
@@ -103,6 +105,6 @@ function importSchema() {
 }
 
 #schema-error {
-  color: #b91c1c;
+  color: var(--text-schema-error);
 }
 </style>

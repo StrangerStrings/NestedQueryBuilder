@@ -116,7 +116,7 @@ function editText(event: Event) {
 }
 
 .condition-scalar-input > span {
-  color: #737a86;
+  color: var(--text-input-label);
 }
 
 :deep(input) {
@@ -124,9 +124,9 @@ function editText(event: Event) {
   min-width: 0;
   box-sizing: border-box;
   padding: 0.45rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface-input);
   color: inherit;
   font: inherit;
 }

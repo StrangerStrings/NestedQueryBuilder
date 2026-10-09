@@ -170,14 +170,14 @@ button {
   padding: 0.45rem;
   border: 0;
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface-button);
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
 
 button:hover:not(:disabled) {
-  background: #f3f6fa;
+  background: var(--surface-control-hover);
 }
 
 button:disabled {
@@ -186,7 +186,7 @@ button:disabled {
 }
 
 button:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 

@@ -204,8 +204,8 @@ watch(filteredOptions, () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #e8eef9;
-  color: #172033;
+  background: var(--surface-control);
+  color: var(--text-primary);
   font: inherit;
   cursor: pointer;
   flex-shrink: 0;
@@ -215,15 +215,15 @@ watch(filteredOptions, () => {
 }
 
 .field-modifier-toggle:hover {
-  background: #f3f6fa;
+  background: var(--surface-control-hover);
 }
 
 .field-modifier-toggle.has-modifier {
-  background: #fff;
+  background: var(--surface-control-selected);
 }
 
 .field-modifier-toggle:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -231,7 +231,7 @@ watch(filteredOptions, () => {
   display: grid;
   gap: 0.5rem;
   margin-top: 0.75rem;
-  color: #172033;
+  color: var(--text-primary);
   font-size: 0.875rem;
 }
 
@@ -239,9 +239,9 @@ watch(filteredOptions, () => {
   min-width: 0;
   width: 100%;
   padding: 0.45rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface-input);
   color: inherit;
   font: inherit;
 }
@@ -259,7 +259,7 @@ watch(filteredOptions, () => {
 .field-input {
   display: grid;
   gap: 0.5rem;
-  color: #172033;
+  color: var(--text-primary);
   font-size: 0.875rem;
 }
 
@@ -267,8 +267,9 @@ input {
   width: 100%;
   box-sizing: border-box;
   padding: 0.45rem;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
+  background: var(--surface-input);
   color: inherit;
   font: inherit;
 }
@@ -279,16 +280,16 @@ input {
   left: 0;
   right: 0;
   z-index: 10;
-  background: #fff;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+  background: var(--surface-menu);
+  box-shadow: 0 4px 12px var(--shadow-menu);
   max-height: 12rem;
   overflow-y: auto;
   margin: 0.35rem 0 0;
   padding: 0;
   list-style: none;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  color: #172033;
+  color: var(--text-primary);
   font-size: 0.875rem;
 }
 
@@ -300,7 +301,7 @@ input {
 
 .field-options li:hover,
 .field-options li.highlighted {
-  background: #e8eef9;
-  color: #172033;
+  background: var(--surface-suggestion-highlight);
+  color: var(--text-primary);
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { getQueryHighlighter } from '../utils/queryHighlighter'
+import { useSettingsStore } from '../stores/settingsStore'
 
 const props = defineProps<{
   queryText: string
@@ -9,15 +10,16 @@ const props = defineProps<{
 }>()
 
 const highlightedHtml = ref('')
+const settingsStore = useSettingsStore()
 
-// Highlight reactive query changes, ignoring stale work and keeping plain text on failure.
+// Highlight query and appearance changes, ignoring stale work and retaining plain text on failure.
 watch(
-  // Track the text and language together so either change refreshes the display.
-  () => [props.queryText, props.language] as const,
-  // Keep plain text visible until the latest highlighting request succeeds.
-  async ([queryText, language], _previous, onCleanup) => {
+  // Track text, language, and resolved appearance together to refresh either preview.
+  () => [props.queryText, props.language, settingsStore.resolvedTheme] as const,
+  // Capture the appearance and show plain text until the latest active request succeeds.
+  async ([queryText, language, appearance], _previous, onCleanup) => {
     let active = true
-    // Discard pending results when the props change or the component unmounts.
+    // Discard pending results when text, language, or appearance changes, or on unmount.
     onCleanup(() => {
       active = false
     })
@@ -28,7 +30,7 @@ watch(
       if (!active) return
       highlightedHtml.value = highlighter.codeToHtml(queryText, {
         lang: language,
-        theme: 'github-light',
+        theme: appearance === 'dark' ? 'github-dark' : 'github-light',
       })
     } catch {
       if (active) highlightedHtml.value = ''
@@ -56,15 +58,15 @@ watch(
   min-width: 0;
   padding: 0.75rem;
   overflow: auto;
-  border: 1px solid #c5ccd8;
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: #fff;
-  color: #172033;
+  background: var(--surface-preview);
+  color: var(--text-primary);
   font-size: 0.875rem;
 }
 
 .query-display:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--focus-ring-accent);
   outline-offset: 2px;
 }
 

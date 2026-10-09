@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import type { QueryCondition } from '../types/query'
-import { rawConditionColour } from '../colours/palette'
+import { resolveConditionColourAppearance } from '../colours/palette'
 
 const props = defineProps<{
   condition: QueryCondition
@@ -53,19 +53,6 @@ const valueLabel = computed(() => {
   return typeof value.value === 'string' ? JSON.stringify(value.value) : value.value
 })
 
-// Use dedicated purple styling for raw expressions and saved field shades for editor conditions.
-const colourStyle = computed(() => {
-  const colour = props.condition.rawSql !== undefined
-    ? rawConditionColour
-    : queryStore.getConditionColour(props.condition)
-  return colour
-    ? {
-        '--condition-background': colour.background,
-        '--condition-accent': colour.accent,
-      }
-    : undefined
-})
-
 // Validate each condition through the selected dialect and retain node-specific generation feedback.
 const generationError = computed(() => {
   const result = queryStore.whereSqlResult
@@ -76,6 +63,20 @@ const generationError = computed(() => {
 
 // Surface generation errors from the selected database adapter.
 const isInvalid = computed(() => generationError.value !== null)
+
+// Apply the shared appearance to the card and selected bars without changing assignments.
+const colourStyle = computed(() => {
+  const colour = resolveConditionColourAppearance(
+    queryStore.getConditionColour(props.condition),
+    settingsStore.resolvedTheme,
+    props.condition.rawSql !== undefined,
+    isInvalid.value,
+  )
+  return {
+    '--condition-background': colour.background,
+    '--condition-accent': colour.accent,
+  }
+})
 
 const emit = defineEmits<{
   select: [condition: QueryCondition]
@@ -152,10 +153,10 @@ const emit = defineEmits<{
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1.2rem;
-  border: 3px solid var(--condition-accent, #94a3b8);
+  border: 3px solid var(--condition-accent);
   border-radius: 22px;
-  background: var(--condition-background, #f8fafc);
-  color: #172033;
+  background: var(--condition-background);
+  color: var(--text-primary);
   text-align: left;
   font: inherit;
   overflow: hidden;
@@ -177,7 +178,7 @@ const emit = defineEmits<{
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #5b6472;
+  color: var(--text-muted);
   cursor: grab;
 }
 
@@ -186,9 +187,9 @@ const emit = defineEmits<{
 }
 
 .condition-drag-handle:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--surface-condition-action-hover);
 }
 
 .query-condition.is-selected::before,
@@ -198,7 +199,7 @@ const emit = defineEmits<{
   top: -3px;
   bottom: -3px;
   width: 6px;
-  background: var(--condition-accent, #94a3b8);
+  background: var(--condition-accent);
   pointer-events: none;
 }
 
@@ -210,19 +211,9 @@ const emit = defineEmits<{
   right: 0;
 }
 
-.query-condition.is-invalid:not(.is-raw) {
-  background: #f3f4f6;
-  border-color: #9ca3af;
-}
-
-.query-condition.is-invalid:not(.is-raw).is-selected::before,
-.query-condition.is-invalid:not(.is-raw).is-selected::after {
-  background: #9ca3af;
-}
-
 .condition-warning {
   flex-shrink: 0;
-  color: #4b5563;
+  color: var(--text-condition-warning);
   font-size: 1.3rem;
 }
 
@@ -247,6 +238,12 @@ const emit = defineEmits<{
   cursor: default;
 }
 
+.condition-content:focus-visible,
+.condition-delete:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .condition-delete {
   opacity: 0;
   pointer-events: none;
@@ -260,19 +257,20 @@ const emit = defineEmits<{
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #5b6472;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
-.query-condition:hover .condition-delete {
+.query-condition:hover .condition-delete,
+.query-condition:focus-within .condition-delete {
   opacity: 1;
   pointer-events: auto;
 }
 
 .condition-delete:hover,
 .condition-delete:focus-visible {
-  background: rgba(0, 0, 0, 0.06);
-  color: #172033;
+  background: var(--surface-condition-action-hover);
+  color: var(--text-primary);
 }
 
 .condition-delete .material-symbols-outlined {

@@ -113,7 +113,7 @@ function toggleDragAndDropMode() {
 
 .builder-content:focus-visible,
 .condition-panel:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--focus-ring-accent);
   outline-offset: -2px;
 }
 
@@ -137,12 +137,12 @@ function toggleDragAndDropMode() {
   padding: 0;
   border: 1px solid currentColor;
   border-radius: 50%;
-  background: white;
-  color: #5b6472;
+  background: var(--surface-button);
+  color: var(--text-muted);
   cursor: pointer;
 }
 
 .drag-pan-icon[aria-pressed='false'] {
-  color: #a8b0bc;
+  color: var(--text-inactive);
 }
 </style>

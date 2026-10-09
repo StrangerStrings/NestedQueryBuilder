@@ -40,9 +40,9 @@ function toggleHelp() {
   box-sizing: border-box;
   margin: 0.75rem 0;
   padding: 0.375rem;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
-  background: #eef0f4;
+  background: var(--surface-help);
 }
 
 .help-box.is-expanded {
@@ -50,7 +50,7 @@ function toggleHelp() {
 }
 
 .help-label {
-  color: #687180;
+  color: var(--text-help-label);
   font-weight: 300;
 }
 
@@ -63,20 +63,20 @@ function toggleHelp() {
   padding: 0.375rem;
   border: 0;
   border-radius: 0.25rem;
-  color: #5b6472;
+  color: var(--text-muted);
   background: transparent;
   font: inherit;
   cursor: pointer;
 }
 
 .help-toggle:focus-visible {
-  outline: 2px solid #172033;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .help-text {
   margin: 0.5rem;
-  color: #5b6472;
+  color: var(--text-muted);
   font-size: 0.875rem;
   line-height: 1.5;
 }

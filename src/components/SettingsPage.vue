@@ -9,6 +9,41 @@ const settingsStore = useSettingsStore()
 <template>
   <section aria-labelledby="settings-heading">
     <h2 id="settings-heading">Settings</h2>
+    <fieldset class="appearance">
+      <legend>Appearance</legend>
+      <div class="display-options">
+        <label for="appearance-system">
+          <input
+            id="appearance-system"
+            v-model="settingsStore.themePreference"
+            type="radio"
+            name="appearance"
+            value="system"
+          />
+          System
+        </label>
+        <label for="appearance-light">
+          <input
+            id="appearance-light"
+            v-model="settingsStore.themePreference"
+            type="radio"
+            name="appearance"
+            value="light"
+          />
+          Light
+        </label>
+        <label for="appearance-dark">
+          <input
+            id="appearance-dark"
+            v-model="settingsStore.themePreference"
+            type="radio"
+            name="appearance"
+            value="dark"
+          />
+          Dark
+        </label>
+      </div>
+    </fieldset>
     <fieldset class="operators-display">
       <legend>Operators display</legend>
       <div class="display-options">
@@ -36,12 +71,16 @@ const settingsStore = useSettingsStore()
 </template>
 
 <style scoped>
-.operators-display {
+fieldset {
   margin: 0;
   padding: 1rem;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--border-panel);
   border-radius: 0.5rem;
-  background: #fff;
+  background: var(--surface-panel);
+}
+
+.appearance {
+  margin-bottom: 1rem;
 }
 
 legend {
@@ -64,6 +103,11 @@ label {
 
 input {
   margin: 0;
-  accent-color: #2563eb;
+  accent-color: var(--accent-primary);
+}
+
+input:focus-visible {
+  outline: 2px solid var(--focus-ring-accent);
+  outline-offset: 3px;
 }
 </style>

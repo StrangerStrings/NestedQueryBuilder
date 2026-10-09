@@ -66,7 +66,7 @@ const emit = defineEmits<{
   grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
   flex: 1;
   padding: 0 1.5rem;
-  background: #ebebf3;
+  background: var(--surface-navigation);
 }
 
 .tab-group {
@@ -87,13 +87,13 @@ button {
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: #5b6472;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
 button.active {
-  border-bottom-color: #2563eb;
-  color: #172033;
+  border-bottom-color: var(--accent-primary);
+  color: var(--text-primary);
   font-weight: 600;
 }
 </style>
