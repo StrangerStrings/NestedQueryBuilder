@@ -2,12 +2,30 @@ import type { SqlResult } from '../../../types/databaseAdapter'
 import type { QueryCondition } from '../../../types/query'
 import { resolveMongoDBOperator, validateMongoDBCondition } from '../validation'
 
-// Validate a complete condition and serialize its standalone native MongoDB filter.
+// Serialize a Raw JSON filter or validate and serialize a visual MongoDB condition.
 export function generateMongoDBConditionSql(condition: QueryCondition): SqlResult {
   let nodeId: string | undefined
   try {
     if (condition && typeof condition === 'object' && typeof condition.id === 'string') {
       nodeId = condition.id
+    }
+    if (!condition || typeof condition !== 'object' || Array.isArray(condition) || condition.kind !== 'condition') {
+      throw new Error('MongoDB requires a structured condition.')
+    }
+    if ('rawSql' in condition) {
+      if (typeof condition.rawSql !== 'string' || !condition.rawSql.trim()) {
+        throw new Error('Enter a MongoDB filter object as JSON.')
+      }
+      let rawFilter: unknown
+      try {
+        rawFilter = JSON.parse(condition.rawSql)
+      } catch {
+        throw new Error('Invalid JSON; enter a valid MongoDB filter object.')
+      }
+      if (!rawFilter || typeof rawFilter !== 'object' || Array.isArray(rawFilter)) {
+        throw new Error('Use a JSON object for the MongoDB filter.')
+      }
+      return { success: true, sql: JSON.stringify(rawFilter, null, 2) }
     }
     validateMongoDBCondition(condition)
     const operator = resolveMongoDBOperator(condition.operatorId)
