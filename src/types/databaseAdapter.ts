@@ -48,6 +48,13 @@ export interface DatabaseAdapter {
   generateConditionSql: (condition: QueryCondition) => SqlResult
   importSqlFilter?: (sql: string) => FilterImportResult
   importSchemaSql?: (sql: string) => SchemaImportResult
+  /** Enables Raw editing independently of parsing; parser-only adapters retain existing defaults. */
+  rawCondition?: {
+    label: string
+    placeholder: string
+    accessibleLabel: string
+    clearOnReturn?: boolean
+  }
   parseRawCondition?: (sql: string) =>
     | { success: true; condition: QueryCondition }
     | { success: false; error: string }

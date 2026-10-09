@@ -64,7 +64,7 @@ export type ElasticsearchConditionParameter =
 export type QueryCondition = {
   kind: 'condition'
   id: string
-  /** When present, this SQL expression takes precedence over the structured editor fields. */
+  /** When present, this raw condition text takes precedence over the structured editor fields. */
   rawSql?: string
   field: ConditionField
   operatorId: string

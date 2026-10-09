@@ -106,7 +106,7 @@ const emit = defineEmits<{
       :aria-invalid="isInvalid"
       :aria-describedby="isInvalid ? `${condition.id}-error` : undefined"
     >
-      <span v-if="condition.rawSql !== undefined" aria-label="Raw SQL condition">
+      <span v-if="condition.rawSql !== undefined" :aria-label="queryStore.adapter.rawCondition?.accessibleLabel ?? 'Raw SQL condition'">
         {{ condition.rawSql || 'Enter a condition' }}
       </span>
       <template v-else>

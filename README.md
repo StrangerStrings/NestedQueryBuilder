@@ -4,7 +4,7 @@ A visual query builder built with Vue 3, Vite, TypeScript, and Pinia.
 
 ## Database targets
 
-PostgreSQL retains visual filter building, WHERE SQL export, SQL filter import (including raw expressions), and CREATE TABLE schema import. MySQL 8.4 supports visual filter building, WHERE SQL export, SQL filter import with validated opaque raw expressions, and CREATE TABLE schema import for field suggestions. MariaDB 11.4 LTS supports the same workflows within its documented compatible syntax subset. Elasticsearch remains a placeholder.
+PostgreSQL retains visual filter building, WHERE SQL export, SQL filter import (including raw expressions), and CREATE TABLE schema import. MySQL 8.4 supports visual filter building, WHERE SQL export, SQL filter import with validated opaque raw expressions, and CREATE TABLE schema import for field suggestions. MariaDB 11.4 LTS supports the same workflows within its documented compatible syntax subset. Elasticsearch supports visual filter building, Query DSL JSON export and import, mapping import for field suggestions, and Raw JSON conditions; see [Elasticsearch capabilities](docs/elasticsearch-capabilities.md) for boundaries.
 
 The query tree and grouping UI are shared. Database adapters supply operators, WHERE and condition SQL generation, and optional filter/schema import and raw-condition parsing capabilities. The store and previews use the selected adapter.
 

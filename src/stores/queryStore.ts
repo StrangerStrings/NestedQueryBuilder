@@ -291,7 +291,7 @@ export const useQueryStore = defineStore('query', () => {
     if (value !== undefined) condition.value = value
   }
 
-  // Apply supported condition edits, filtering combined Elasticsearch operator/parameter updates.
+  // Store supported Raw drafts and filter combined Elasticsearch operator/parameter updates.
   function updateCondition(
     conditionId: string,
     updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value' | 'rawSql' | 'parameters'>>,
@@ -300,7 +300,7 @@ export const useQueryStore = defineStore('query', () => {
     if (!condition) return
 
     if (updates.rawSql !== undefined) {
-      if (adapter.value.parseRawCondition) condition.rawSql = updates.rawSql
+      if (adapter.value.rawCondition || adapter.value.parseRawCondition) condition.rawSql = updates.rawSql
       return
     }
 
@@ -465,11 +465,21 @@ export const useQueryStore = defineStore('query', () => {
     }
   }
 
-  // Convert supported raw SQL atomically, leaving the current expression intact on failure.
+  // Clear Raw conditions in place when configured, otherwise convert SQL atomically on success.
   function editRawCondition(conditionId: string): string | null {
     const condition = findConditionById(query.value, conditionId)
     if (!condition) return 'Condition no longer exists.'
     if (condition.rawSql === undefined) return null
+    if (adapter.value.rawCondition?.clearOnReturn) {
+      const operator = operators.value[0]
+      const value = operator ? convertOperatorValue({ hasValue: false }, operator) : undefined
+      condition.field = { name: '', modifier: null }
+      condition.operatorId = value !== undefined && operator ? operator.id : ''
+      condition.value = value ?? { hasValue: false }
+      delete condition.rawSql
+      delete condition.parameters
+      return null
+    }
     const parser = adapter.value.parseRawCondition
     if (!parser) return `${adapter.value.label} raw SQL editing is not supported.`
     const result = parser(condition.rawSql)

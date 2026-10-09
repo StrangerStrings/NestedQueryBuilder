@@ -26,6 +26,9 @@ const outputLabel = computed(() => queryStore.adapter.presentation?.outputLabel 
 // Derive the active mode directly from the condition's representation.
 const editingMode = computed(() => props.condition.rawSql === undefined ? 'editor' : 'raw')
 
+// Enable metadata-backed Raw editing while preserving parser-enabled adapters.
+const supportsRaw = computed(() => !!(queryStore.adapter.rawCondition || queryStore.adapter.parseRawCondition))
+
 // Resolve the selected operator metadata for the current condition.
 const selectedOperator = computed(() =>
   queryStore.operators.find((operator) => operator.id === props.condition.operatorId),
@@ -93,26 +96,26 @@ watch(
   },
 )
 
-// Initialise the raw condition directly from its current generated SQL.
+// Initialise the raw condition directly from its current generated clause.
 function openRawEditor() {
-  if (!queryStore.adapter.parseRawCondition || editingMode.value === 'raw') return
+  if (!supportsRaw.value || editingMode.value === 'raw') return
   const sql = conditionSql.value
   queryStore.updateCondition(props.condition.id, { rawSql: sql.success ? sql.sql : '' })
   editorError.value = null
 }
 
-// Write each keystroke directly to the condition, including incomplete or invalid SQL.
+// Write each keystroke directly to the condition, including empty or invalid drafts.
 function updateRawInput(event: Event) {
-  if (!queryStore.adapter.parseRawCondition) return
+  if (!supportsRaw.value) return
   queryStore.updateCondition(props.condition.id, {
     rawSql: (event.target as HTMLTextAreaElement).value,
   })
   editorError.value = null
 }
 
-// Switch to the visual editor when the current raw expression can be represented there.
+// Return to the visual editor using the adapter's clearing or conversion behavior.
 function openVisualEditor() {
-  if (!queryStore.adapter.parseRawCondition || editingMode.value === 'editor') return
+  if (!supportsRaw.value || editingMode.value === 'editor') return
   editorError.value = queryStore.editRawCondition(props.condition.id)
 }
 
@@ -157,7 +160,7 @@ const emit = defineEmits<{
           Editor
         </button>
         <button
-          v-if="queryStore.adapter.parseRawCondition"
+          v-if="supportsRaw"
           type="button"
           :aria-pressed="editingMode === 'raw'"
           @click="openRawEditor"
@@ -174,14 +177,14 @@ const emit = defineEmits<{
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
     </div>
-    <div v-if="queryStore.adapter.parseRawCondition && editingMode === 'raw'" class="raw-condition-input">
-      <label :for="rawConditionId">Raw condition</label>
+    <div v-if="supportsRaw && editingMode === 'raw'" class="raw-condition-input">
+      <label :for="rawConditionId">{{ queryStore.adapter.rawCondition?.label ?? 'Raw condition' }}</label>
       <textarea
         :id="rawConditionId"
         :value="condition.rawSql"
         @input="updateRawInput"
         rows="6"
-        placeholder="status = 'online'"
+        :placeholder="queryStore.adapter.rawCondition?.placeholder ?? &quot;status = 'online'&quot;"
         :spellcheck="false"
         :aria-invalid="!!rawError"
         :aria-describedby="previewError ? `${rawConditionId}-error` : undefined"

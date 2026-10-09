@@ -2,12 +2,30 @@ import type { SqlResult } from '../../../types/databaseAdapter'
 import type { QueryCondition } from '../../../types/query'
 import { resolveElasticsearchOperator, validateElasticsearchCondition } from '../validation'
 
-// Validate a complete condition and serialize its clause with every explicitly configured parameter.
+// Validate and serialize a Raw JSON clause or a visual condition with its configured parameters.
 export function generateElasticsearchConditionSql(condition: QueryCondition): SqlResult {
   let nodeId: string | undefined
   try {
     if (condition && typeof condition === 'object' && typeof condition.id === 'string') {
       nodeId = condition.id
+    }
+    if (!condition || typeof condition !== 'object' || Array.isArray(condition) || condition.kind !== 'condition') {
+      throw new Error('Elasticsearch requires a structured condition.')
+    }
+    if ('rawSql' in condition) {
+      if (typeof condition.rawSql !== 'string' || !condition.rawSql.trim()) {
+        throw new Error('Enter one Elasticsearch query clause as JSON.')
+      }
+      let rawClause: unknown
+      try {
+        rawClause = JSON.parse(condition.rawSql)
+      } catch {
+        throw new Error('Invalid JSON; enter a valid Elasticsearch query clause.')
+      }
+      if (!rawClause || typeof rawClause !== 'object' || Array.isArray(rawClause) || Object.keys(rawClause).length !== 1) {
+        throw new Error('Use a JSON object with exactly one top-level query clause.')
+      }
+      return { success: true, sql: JSON.stringify(rawClause, null, 2) }
     }
     validateElasticsearchCondition(condition)
     const operator = resolveElasticsearchOperator(condition.operatorId)
