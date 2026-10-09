@@ -71,7 +71,7 @@ including its tradeoffs, is supplied to subsequent implementation agents.
 
 After simplifications pass their mini-reviews, the final reviewer checks the whole
 result against the amended requirements. The simplicity checker does not run again
-or repeatedly propose options you declined. The final review remains Astra xhigh.
+or repeatedly propose options you declined. The final review uses Astra high.
 
 For example, the dark-mode task can raise decisions about theme selection or
 preference persistence when the repository and brief do not settle them. It does

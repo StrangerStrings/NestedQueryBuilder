@@ -18,7 +18,7 @@ export const agents = {
   implementer: { model: 'gpt-6.1-sol', effort: 'medium' },
   miniReviewer: { model: 'gpt-6.1-sol', effort: 'medium' },
   simplicityChecker: { model: 'gpt-6-astra', effort: 'xhigh' },
-  finalReviewer: { model: 'gpt-6-astra', effort: 'xhigh' },
+  finalReviewer: { model: 'gpt-6-astra', effort: 'high' },
 } satisfies Record<string, AgentConfig>
 
 export type Role = keyof typeof agents
