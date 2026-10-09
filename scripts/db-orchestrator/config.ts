@@ -9,6 +9,7 @@ export type AgentConfig = {
 // Keep model choices here so each role can be configured independently.
 export const agents = {
   researcher: { model: 'gpt-6.1-sol', effort: 'high' },
+  dependencyAssessor: { model: 'gpt-6.1-sol', effort: 'medium' },
   planner: { model: 'gpt-6-astra', effort: 'high' },
   // The same high-level planner runs a narrow impact assessment for new decisions.
   impactPlanner: { model: 'gpt-6-astra', effort: 'high' },

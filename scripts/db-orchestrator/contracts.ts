@@ -41,6 +41,7 @@ export type PlanImpact = {
 }
 export type Outputs = {
   researcher: Requirements
+  dependencyAssessor: { markdown: string }
   planner: Plan
   questions: Questions
   detailedPlanner: DetailedPlan
@@ -88,6 +89,7 @@ const stageSchema = object({
 
 export const schemas: Record<keyof Outputs, Schema> = {
   researcher: object({ markdown: text }),
+  dependencyAssessor: object({ markdown: text }),
   planner: object({
     overview: text,
     stages: array(object({

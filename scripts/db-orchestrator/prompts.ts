@@ -15,10 +15,43 @@ Identify what is already supported before proposing changes. Consult official da
 and include source URLs and relevant repository paths. Produce requirements covering query generation,
 query parsing, schema handling, common operators, compatibility and explicit exclusions. Define how
 unsupported syntax is reported. Identify meaningful architectural choices and uncertainty.
+Leave package discovery and selection to the Dependency Assessor that follows you; describe the
+required behavior and existing dependencies without conducting a competing package assessment.
 Return the complete requirements document in the markdown field.`,
 
-  planner: `Read requirements.md, decisions.json and the existing architecture.
+  dependencyAssessor: `Read requirements.md, the existing parsing and serialization code, package.json
+and the lockfile. Assess at most three credible approaches for the requested supported subset,
+including reusing existing code or dependencies. Evaluate parsing and serialization separately;
+one package need not do both. Recommend one overall approach with the smallest practical integration.
+Consult official package documentation, repositories and published metadata. Cite URLs and the
+specific package versions assessed. Compare required syntax support, AST/input/output fit, browser
+and Vite compatibility, TypeScript support, license, maintenance and dependency footprint. Distinguish
+documented evidence, source inspection and unverified assumptions; do not claim runtime verification.
+Keep the assessment concise. Stop when evidence supports a suitable choice; do not investigate
+obscure edge cases, full dialect compatibility, speculative features or unrelated dependencies.
+Return a markdown report containing: recommendation and versions, brief candidate comparison,
+fit for the required parsing and serialization behavior, known gaps, a small integration outline,
+and any unresolved choices that affect supported behavior and require human judgment. If no package
+fits, explain the smallest existing-code/manual approach and its limitations rather than forcing a
+dependency or silently reducing requirements. Send meaningful tradeoffs to the existing question
+loop through this report; do not ask the user yourself or treat the recommendation as approved.
+Do not install packages, run package code or probes, modify files, or execute validation commands.
+Return the complete report in the markdown field; the orchestrator saves dependencies.md.`,
+
+  planner: `Read requirements.md and decisions.json. For the initial plan, inspect the existing architecture.
+Read dependencies.md when present and incorporate its recommendation into the plan, subject to saved
+user decisions. Record the chosen parsing/serialization approach and assessed package versions in
+the overview, with concrete integration work in the relevant stages. Carry meaningful unresolved
+tradeoffs into the plan for the question agent; do not silently resolve changes to supported behavior.
+Do not schedule package discovery as an implementation stage or repeat the assessment. Consult
+specific evidence only for a concrete gap. The approved plan and later user decisions are authoritative;
+the dependency report is advisory and may be superseded. Older runs may have no dependency report.
 Create or revise a high-level plan with approximately 5–15 focused, sequential stages (fewer if justified).
+When a previous plan is supplied, use it as the baseline rather than planning from scratch. Apply the
+saved answers and revision feedback only where they affect the plan. Preserve unaffected stages,
+wording, ordering and criteria; change the structure only when an answer or feedback requires it.
+Reuse the existing research and inspect source only for concrete ambiguities introduced by the answers.
+Do not invent decisions for unresolved choices: the question agent will review the revised plan next.
 Keep stages small, each with one concrete outcome. Do not combine them into larger tasks to reduce
 the number of handoffs. Plan only the requested supported subset, not exhaustive database compatibility.
 Each stage needs a title, objective, earlier-stage dependencies and concrete acceptance criteria.
@@ -37,13 +70,18 @@ The new answers are proposed until the human approves your impact report. Do not
 Perform additional source research only if it is needed to understand this particular blocker.`,
 
   questions: `Read requirements.md, plan.md, decisions.json and the relevant source code.
+When dependencies.md exists, read its unresolved tradeoffs and check that meaningful choices about
+supported behavior are resolved by the current plan and saved answers. Do not require a separate
+package approval when no human decision is needed; the normal plan approval covers the recommendation.
 Identify only important unresolved architectural choices that require human judgment.
 Do not ask about facts you can discover in the repository, routine implementation choices,
 the already-fixed scope, model choices, validation, retries, authentication or Git policy.
 Provide 2–4 distinct options per question, explain tradeoffs, and select a zero-based recommendedIndex.
 Allow the terminal to collect answers; do not ask the user yourself. Previously answered questions
 must not recur unless a plan revision creates a genuine contradiction. Return an empty questions
-array when no meaningful unresolved decisions remain.`,
+array when no meaningful unresolved decisions remain. On each planning round, check that the revised
+plan reflects the saved answers and ask only remaining choices or follow-up decisions created by those
+answers. Do not manufacture questions, broaden scope or ask for approval just to continue the loop.`,
 
   detailedPlanner: `Translate the supplied approved stage into a concise implementation task.
 Start with the stage criteria and question/answer pairs included in the task. Inspect only the source
@@ -52,6 +90,8 @@ decisions and previous reports are references: consult a specific section only t
 ambiguity or dependency, rather than rereading all documents or surveying the entire repository.
 Do not conduct broad web research, rediscover database capabilities, reopen settled choices, design
 future stages, or invent acceptance criteria. A targeted lookup is allowed for a specific missing fact.
+Use the parsing/serialization approach selected in the approved plan and decisions. Consult its
+overview or dependencies.md only as needed for the current stage; do not repeat package discovery.
 Aim for 200–400 words of instructions: objective, relevant files, a short action list, the approved
 acceptance criteria (or their reference), and exclusions. Do not produce another architecture report.
 On a repair attempt, translate the supplied review findings into focused correction instructions.
@@ -66,6 +106,9 @@ and explain why in decisionReason. Otherwise set it false and leave decisionReas
 directly in the task. Read the relevant source and make the smallest change that completes this step,
 then stop. Consult broader documents only for a concrete ambiguity; do not routinely reread them all.
 Do not expand a detailed instruction into a larger project or invent additional acceptance criteria.
+Use the parsing/serialization approach selected in the approved plan and decisions; do not repeat
+package discovery or substitute a different library. A concrete incompatibility with the approved
+contract uses the existing BLOCKED path. The assessment is advisory; later approved decisions win.
 On a repair attempt, use the supplied mini-review findings and apply the new correction instructions to the
 existing changes. Address every finding while preserving completed work and the original stage scope.
 Make focused application changes in the worktree. Limit online lookups to specific missing facts
@@ -98,7 +141,7 @@ PASS requires no unresolved findings; otherwise return actionable findings with 
 line numbers. State in the summary that runtime behavior and automated checks were not verified.`,
 }
 
-// Give each role shared boundaries, with simplicity guidance scoped to planning and implementation.
+// Give each role shared artifact references and boundaries, plus focused simplicity guidance.
 export function agentPrompt(role: Role, context: Context, task: string): string {
   const simplicity = ['planner', 'impactPlanner', 'detailedPlanner', 'implementer'].includes(role)
     ? `\nSimplicity policy for this role:
@@ -119,6 +162,7 @@ Branch: ${context.branch}
 Original base commit: ${context.baseCommit}
 Workflow artifacts: ${context.runDir}
 Requirements: ${context.runDir}/requirements.md
+Dependency assessment (when present): ${context.runDir}/dependencies.md
 Plan: ${context.runDir}/plan.md
 Decisions: ${context.runDir}/decisions.json
 

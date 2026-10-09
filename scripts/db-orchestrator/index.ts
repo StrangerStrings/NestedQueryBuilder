@@ -445,7 +445,7 @@ function requestPause(): void {
   }
 }
 
-// Restore the exact cursor, or infer the cursor once for a run created by the old script.
+// Restore every saved phase, including dependency assessment, without rewinding older runs.
 function restoreRun(database: string, runDir: string): void {
   const saved = readJson<SavedRun>(join(runDir, 'run.json'))
   const expectedPath = join(repository, '.codex-orchestrator', 'worktrees', databaseSlug(database))
@@ -461,7 +461,7 @@ function restoreRun(database: string, runDir: string): void {
   assertGitState()
   const native = saved.version === 2
   if (native) {
-    if (!saved.progress || !['research', 'planning', 'implementation', 'final', 'done'].includes(saved.progress.mode)) {
+    if (!saved.progress || !['research', 'dependencies', 'planning', 'implementation', 'final', 'done'].includes(saved.progress.mode)) {
       throw new Error('The saved workflow cursor is missing or invalid. Inspect run.json.')
     }
     progress = saved.progress

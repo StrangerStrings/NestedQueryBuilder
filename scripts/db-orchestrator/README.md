@@ -25,12 +25,15 @@ ChatGPT authentication; there is no API billing fallback or model substitution.
 
 1. Create `codex/database-<database>` and a worktree from the current `HEAD`.
 2. Research the database and current application to produce requirements.
-3. Prepare a high-level plan and ask meaningful architectural questions.
-4. Save your answers and revise the plan, then wait for your explicit approval.
-5. For each stage: Detailed Planner → Implementer → Mini Reviewer.
-6. A mini-review FAIL goes back through detailed planning, implementation and
+3. Assess parsing/serialization dependencies and save a recommended approach.
+4. Prepare a high-level plan using that assessment and ask meaningful architectural questions.
+5. Save your answers, revise the existing plan using them, and check for further
+   questions. Repeat until the question agent returns no unresolved questions,
+   then wait for your explicit approval before implementation.
+6. For each stage: Detailed Planner → Implementer → Mini Reviewer.
+7. A mini-review FAIL goes back through detailed planning, implementation and
    review, with up to three repair attempts after the initial implementation.
-7. After every stage passes, perform the final review once. Its verdict never
+8. After every stage passes, perform the final review once. Its verdict never
    triggers a repair loop or an architectural-decision loop.
 
 Scope is query generation, parsing, schema handling and popular operators that
@@ -40,6 +43,40 @@ capabilities remain outside scope.
 There are no commits, merges or pushes. No tests are created or changed; tests,
 formatting, linting, type checks and builds are disabled. PASS means a source
 review found no unresolved issues, not that runtime behavior was verified.
+
+Each planning round builds on the previous plan and saved answers, rather than
+restarting research or planning from scratch. Unaffected stages stay unchanged;
+follow-up questions are limited to remaining decisions within the agreed scope.
+There is no fixed limit on these question rounds. You can pause and resume during
+any round, including partway through answering its questions. Choosing Revise at
+final plan approval also sends the amended plan through another question pass.
+This loop is for initial planning; implementation blockers use the targeted
+architectural checkpoint described below.
+
+## Dependency assessment
+
+After research, the Dependency Assessor reads the requirements, existing parsing
+and serialization code, and current dependencies. It assesses at most three
+credible approaches, including reuse, and recommends one in `dependencies.md`.
+Parsing and serialization are considered separately; one package need not do both.
+
+The concise report covers package versions and source links, fit for the required
+subset, browser/Vite and TypeScript compatibility, license, maintenance, dependency
+footprint, known gaps and a small integration outline. Documented support and
+unverified assumptions are distinguished. It does not install packages, execute
+package code or probes, edit application files, or run validation commands.
+
+The planner incorporates the recommendation and records the selected approach in
+the plan. Meaningful choices affecting supported behavior go through the existing
+question/revision loop; there is no additional package-selection approval screen.
+The approved plan and subsequent decisions take precedence over the advisory report.
+Implementation stages integrate the chosen approach instead of repeating package
+discovery. A concrete incompatibility uses the existing architectural blocker path.
+
+The assessment has its own saved cursor and reuses accepted results on resume.
+New runs and runs still in research enter it before planning. Existing runs already
+in planning or implementation keep their saved position and are not rewound to
+insert an assessment; these older runs may have no `dependencies.md`.
 
 ## Keep each step small
 
@@ -143,10 +180,12 @@ Source is in `scripts/db-orchestrator/`. Generated files are Git-ignored:
     pause.request                  # Request to pause at the next boundary
     models.json
     requirements.md
+    dependencies.md                # Advisory parsing/serialization assessment
     plan.md
     plan.json
     decisions.json
     plans/revision-1/               # Plan, questions and partial answers
+    plans/revision-2/before-plan.json # Previous plan used as this revision's baseline
     stages/01/
       before.patch                 # Historical baseline for this stage
       after.patch                  # Latest stage state
@@ -194,6 +233,7 @@ separate invocation of the High-Level Planner, with the same default model.
 | Role | Model | Effort |
 | --- | --- | --- |
 | Researcher | GPT-6.1 Sol | high |
+| Dependency Assessor | GPT-6.1 Sol | medium |
 | High-level planner / impact assessment | GPT-6 Astra | high |
 | Design questions | GPT-6.1 Sol | medium |
 | Detailed planner | GPT-6.1 Sol | medium |

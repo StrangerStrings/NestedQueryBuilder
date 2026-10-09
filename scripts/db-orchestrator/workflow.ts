@@ -15,7 +15,7 @@ export type Blocker = {
   revision: number
 }
 export type Progress = {
-  mode: 'research' | 'planning' | 'implementation' | 'final' | 'done'
+  mode: 'research' | 'dependencies' | 'planning' | 'implementation' | 'final' | 'done'
   planningStep: 'plan' | 'questions' | 'answers' | 'approval'
   revision: number
   stage: number
@@ -144,7 +144,7 @@ function applyImpact(plan: Plan, impact: PlanImpact, completed: number[]): { pla
   return { plan: revised, reopen: completed.filter((number) => affected.has(number)) }
 }
 
-// Resume the saved cursor and give execution roles focused stage context before each handoff.
+// Resume research, dependency assessment and planning handoffs before executing focused stages.
 export async function runWorkflow(host: WorkflowHost): Promise<void> {
   const { context, progress, saveJson } = host
   const root = context.runDir
@@ -320,6 +320,11 @@ Address only this blocker. Do not repeat resolved design questions or restart ot
     if (progress.mode === 'research') {
       const result = await host.agent('researcher', 'Inspect the existing code and research the target database. Produce requirements for the agreed scope.', 'research')
       writeFileSync(join(root, 'requirements.md'), `${result.markdown}\n`)
+      progress.mode = 'dependencies'
+      advance()
+    } else if (progress.mode === 'dependencies') {
+      const result = await host.agent('dependencyAssessor', 'Assess parsing and serialization approaches against the saved requirements and existing implementation. Recommend one bounded approach for the planner, with evidence, integration steps and any meaningful choices for the existing question loop. Do not install packages or implement anything.', 'dependency-assessment')
+      writeFileSync(join(root, 'dependencies.md'), `${result.markdown}\n`)
       progress.mode = 'planning'
       advance()
     } else if (progress.mode === 'planning') {
@@ -328,7 +333,19 @@ Address only this blocker. Do not repeat resolved design questions or restart ot
       const revisionDir = join(root, 'plans', `revision-${progress.revision}`)
       mkdirSync(revisionDir, { recursive: true })
       if (progress.planningStep === 'plan') {
-        const plan = await host.agent('planner', 'Produce the current plan. All saved answers and revision feedback in decisions.json are authoritative.', `planning-${progress.revision}-plan`)
+        // Freeze the existing plan so retries of this round use the same revision baseline.
+        const baselinePath = join(revisionDir, 'before-plan.json')
+        if (!existsSync(baselinePath) && existsSync(join(root, 'plan.json'))) {
+          copyFileSync(join(root, 'plan.json'), baselinePath)
+        }
+        const task = existsSync(baselinePath)
+          ? `Revise the existing plan saved at ${baselinePath}. Do not start from scratch.
+Apply all saved answers and revision feedback in decisions.json as authoritative. Preserve unaffected
+stages and their criteria. Return the complete updated plan. The question agent will review it again;
+implementation cannot begin until a question round returns no unresolved questions and the user approves.`
+          : 'Produce the initial plan from the saved requirements and existing architecture. All saved answers and revision feedback in decisions.json are authoritative.'
+        console.log(`\nPlanning round ${progress.revision}: ${existsSync(baselinePath) ? 'revising the existing plan' : 'creating the initial plan'}.`)
+        const plan = await host.agent('planner', task, `planning-${progress.revision}-plan`)
         validatePlan(plan)
         saveJson(join(root, 'plan.json'), plan)
         writeFileSync(join(root, 'plan.md'), host.renderPlan(plan))
@@ -337,10 +354,13 @@ Address only this blocker. Do not repeat resolved design questions or restart ot
         progress.planningStep = 'questions'
         advance()
       } else if (progress.planningStep === 'questions') {
-        const questions = await host.agent('questions', 'Identify important design questions still unresolved in this plan.', `planning-${progress.revision}-questions`)
+        const questions = await host.agent('questions', 'Review the current plan against all saved answers. Identify only important design questions still unresolved, including follow-up choices created by the latest answers. Return an empty questions array when none remain; do not repeat settled questions or expand scope.', `planning-${progress.revision}-questions`)
         validateQuestions(questions)
         saveJson(join(revisionDir, 'questions.json'), questions)
         saveJson(join(revisionDir, 'before-decisions.json'), readJson<Decisions>(decisionsPath))
+        console.log(questions.questions.length
+          ? `Planning round ${progress.revision}: ${questions.questions.length} question(s) to answer before revising the plan again.`
+          : 'No unresolved design questions remain. The plan is ready for your approval.')
         progress.planningStep = questions.questions.length ? 'answers' : 'approval'
         advance()
       } else if (progress.planningStep === 'answers') {
