@@ -40,3 +40,6 @@ __screenshots__/
 
 # Database orchestration artifacts and worktrees
 /.codex-orchestrator/
+
+# General task orchestration artifacts and worktrees
+/.codex-task-orchestrator/
