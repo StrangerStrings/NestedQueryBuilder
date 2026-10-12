@@ -12,9 +12,13 @@ const settingsStore = useSettingsStore()
 const selectedConditionId = ref<string | null>(null)
 
 // Drop selection immediately when the query root is replaced by a switch or import.
-watch(() => queryStore.query.id, () => {
-  selectedConditionId.value = null
-}, { flush: 'sync' })
+watch(
+  () => queryStore.query.id,
+  () => {
+    selectedConditionId.value = null
+  },
+  { flush: 'sync' },
+)
 
 // Resolve the selection from the current tree so deleted conditions close their panel.
 function findSelectedCondition(group: QueryGroupModel): QueryCondition | null {
@@ -45,6 +49,16 @@ function closeConditionPanel() {
 function toggleDragAndDropMode() {
   settingsStore.dragAndDropMode = !settingsStore.dragAndDropMode
 }
+
+// Switch from the current appearance and persist the chosen light or dark theme.
+function toggleDarkMode() {
+  settingsStore.themePreference = settingsStore.resolvedTheme === 'dark' ? 'light' : 'dark'
+}
+
+// Switch operator text between readable labels and database identifiers.
+function toggleOperatorLabels() {
+  settingsStore.showOperatorLabels = !settingsStore.showOperatorLabels
+}
 </script>
 
 <template>
@@ -59,26 +73,50 @@ function toggleDragAndDropMode() {
           />
         </div>
       </div>
-      <Transition name="panel">
-        <ConditionPanel
-          v-if="selectedCondition"
-          :key="selectedCondition.id"
-          :condition="selectedCondition"
-          tabindex="0"
-          @close="closeConditionPanel"
-        />
-      </Transition>
+      <ConditionPanel
+        v-if="selectedCondition"
+        :key="selectedCondition.id"
+        :condition="selectedCondition"
+        tabindex="0"
+        @close="closeConditionPanel"
+      />
     </div>
-    <button
-      type="button"
-      class="drag-pan-icon"
-      aria-label="Drag Pan"
-      :aria-pressed="settingsStore.dragAndDropMode"
-      title="Drag Pan"
-      @click="toggleDragAndDropMode"
-    >
-      <span class="material-symbols-outlined" aria-hidden="true" title="Toggle drag and drop">drag_pan</span>
-    </button>
+    <div class="builder-controls" role="group" aria-label="Builder display settings">
+      <button
+        type="button"
+        class="builder-control"
+        aria-label="Drag Pan"
+        :aria-pressed="settingsStore.dragAndDropMode"
+        title="Drag Pan"
+        @click="toggleDragAndDropMode"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">drag_pan</span>
+      </button>
+      <button
+        type="button"
+        class="builder-control"
+        aria-label="Dark mode"
+        :aria-pressed="settingsStore.resolvedTheme === 'dark'"
+        :title="
+          settingsStore.resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+        "
+        @click="toggleDarkMode"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">
+          {{ settingsStore.resolvedTheme === 'dark' ? 'dark_mode' : 'light_mode' }}
+        </span>
+      </button>
+      <button
+        type="button"
+        class="builder-control"
+        aria-label="Operator labels"
+        :aria-pressed="settingsStore.showOperatorLabels"
+        :title="settingsStore.showOperatorLabels ? 'Hide operator labels' : 'Show operator labels'"
+        @click="toggleOperatorLabels"
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">label</span>
+      </button>
+    </div>
   </section>
 </template>
 
@@ -124,11 +162,16 @@ function toggleDragAndDropMode() {
   padding-left: 1.5rem;
 }
 
-.drag-pan-icon {
+.builder-controls {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 1rem;
   left: 1.5rem;
   z-index: 1;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.builder-control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -142,7 +185,16 @@ function toggleDragAndDropMode() {
   cursor: pointer;
 }
 
-.drag-pan-icon[aria-pressed='false'] {
+.builder-control[aria-pressed='false'] {
   color: var(--text-inactive);
+}
+
+.builder-control[aria-pressed='true'] {
+  color: var(--accent-primary);
+}
+
+.builder-control:focus-visible {
+  outline: 2px solid var(--focus-ring-accent);
+  outline-offset: 3px;
 }
 </style>

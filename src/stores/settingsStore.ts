@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 type ThemePreference = 'system' | 'light' | 'dark'
 type ResolvedTheme = 'light' | 'dark'
@@ -12,6 +12,25 @@ export const useSettingsStore = defineStore('settings', () => {
   const resolvedTheme = ref<ResolvedTheme>('light')
   let appearanceInitialized = false
   let systemAppearance: MediaQueryList | null = null
+
+  try {
+    showOperatorLabels.value = localStorage.getItem('query-builder.showOperatorLabels') === 'true'
+  } catch {
+    // Keep labels off when storage is unavailable.
+  }
+
+  // Persist label changes immediately while keeping the toggle usable without storage.
+  watch(
+    showOperatorLabels,
+    (showLabels) => {
+      try {
+        localStorage.setItem('query-builder.showOperatorLabels', String(showLabels))
+      } catch {
+        // Keep the in-memory selection when storage is unavailable.
+      }
+    },
+    { flush: 'sync' },
+  )
 
   // Apply presentation changes directly to the root without remounting views.
   function applyAppearance(appearance: ResolvedTheme) {
@@ -37,7 +56,8 @@ export const useSettingsStore = defineStore('settings', () => {
     appearanceInitialized = true
     const root = document.documentElement
     const preference = root.dataset.themePreference
-    selectedPreference.value = preference === 'light' || preference === 'dark' ? preference : 'system'
+    selectedPreference.value =
+      preference === 'light' || preference === 'dark' ? preference : 'system'
     applyAppearance(root.dataset.theme === 'dark' ? 'dark' : 'light')
     try {
       systemAppearance = window.matchMedia('(prefers-color-scheme: dark)')
@@ -66,5 +86,11 @@ export const useSettingsStore = defineStore('settings', () => {
     set: setThemePreference,
   })
 
-  return { showOperatorLabels, dragAndDropMode, themePreference, resolvedTheme, initializeAppearance }
+  return {
+    showOperatorLabels,
+    dragAndDropMode,
+    themePreference,
+    resolvedTheme,
+    initializeAppearance,
+  }
 })

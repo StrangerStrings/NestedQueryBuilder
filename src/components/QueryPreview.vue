@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
-import { format } from 'sql-formatter'
+import { formatDialect, postgresql, mysql, mariadb, sqlite } from 'sql-formatter'
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryGroup } from '../types/query'
 import QueryDisplay from './QueryDisplay.vue'
+
+// Retain only the SQL dialects supported by the database adapters.
+const formatterDialects = { postgresql, mysql, mariadb, sqlite }
 
 const queryStore = useQueryStore()
 const copyStatusId = `${useId()}-copy-status`
@@ -29,7 +32,7 @@ function hasRawCondition(group: QueryGroup): boolean {
   return false
 }
 
-// Preserve SQLite Raw and unformatted output; otherwise format SQL with the original as fallback.
+// Format with the selected supported dialect, preserving Raw output and the original on failure.
 const formattedSql = computed(() => {
   const result = queryStore.whereSqlResult
   if (!result.success || !result.sql) return ''
@@ -38,7 +41,7 @@ const formattedSql = computed(() => {
   if (dialect === null) return result.sql
 
   try {
-    return format(result.sql, { language: dialect })
+    return formatDialect(result.sql, { dialect: formatterDialects[dialect] })
   } catch {
     return result.sql
   }

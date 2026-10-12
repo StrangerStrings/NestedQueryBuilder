@@ -1,26 +1,49 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { defineAsyncComponent, h, onMounted, ref, watch } from 'vue'
 import { useQueryStore } from './stores/queryStore'
+import { databaseDefinitions } from './databases/DatabaseDefinitions'
 
 import QueryBuilder from './components/QueryBuilder.vue'
-import QueryPreview from './components/QueryPreview.vue'
 import QueryImport from './components/QueryImport.vue'
 import TabNavigation from './components/TabNavigation.vue'
 import SchemaImport from './components/SchemaImport.vue'
-import SettingsPage from './components/SettingsPage.vue'
 import DatabaseList from './components/DatabaseList.vue'
 
-type Tab = 'builder' | 'output' | 'import' | 'schema' | 'databases' | 'settings'
+const QueryPreview = defineAsyncComponent({
+  // Download Output and its SQL formatter only when the Output tab is opened.
+  loader: () => import('./components/QueryPreview.vue'),
+  loadingComponent: {
+    // Announce loading while the Output component downloads.
+    render() {
+      return h('p', { role: 'status' }, 'Loading output…')
+    },
+  },
+  errorComponent: {
+    // Explain how to retry a failed download without losing the current query.
+    render() {
+      return h('p', { role: 'alert' }, 'Could not load output. Open another tab, then try Output again.')
+    },
+  },
+})
+
+type Tab = 'builder' | 'output' | 'import' | 'schema' | 'databases'
 
 const activeTab = ref<Tab>('builder')
 const queryStore = useQueryStore()
 
+// Load the saved database before mounting views that use its capabilities.
+onMounted(() => {
+  void queryStore.changeDatabase(queryStore.database)
+})
+
 // Guard navigation entry points using the same capabilities as the visible tabs.
 function selectTab(tab: Tab) {
-  if (!queryStore.adapter.placeholder && (
-    (tab === 'import' && !queryStore.adapter.importSqlFilter) ||
-    (tab === 'schema' && !queryStore.adapter.importSchemaSql)
-  )) return
+  if (
+    !queryStore.adapter.placeholder &&
+    ((tab === 'import' && !queryStore.adapter.importSqlFilter) ||
+      (tab === 'schema' && !queryStore.adapter.importSchemaSql))
+  )
+    return
   activeTab.value = tab
 }
 
@@ -29,8 +52,10 @@ watch(
   () => queryStore.database,
   () => {
     if (queryStore.adapter.placeholder) return
-    if ((activeTab.value === 'import' && !queryStore.adapter.importSqlFilter) ||
-        (activeTab.value === 'schema' && !queryStore.adapter.importSchemaSql)) {
+    if (
+      (activeTab.value === 'import' && !queryStore.adapter.importSqlFilter) ||
+      (activeTab.value === 'schema' && !queryStore.adapter.importSchemaSql)
+    ) {
       activeTab.value = 'builder'
     }
   },
@@ -40,24 +65,42 @@ watch(
 
 <template>
   <div class="app-shell" :class="{ 'builder-active': activeTab === 'builder' }">
-    <div class="top-navigation">
+    <div v-if="queryStore.databaseReady" class="top-navigation" :inert="!!queryStore.databaseLoading">
       <TabNavigation :active-tab="activeTab" @select="selectTab" />
     </div>
     <main class="main-content">
-      <QueryBuilder v-if="activeTab === 'builder'" :key="`builder-${queryStore.database}`" />
-      <QueryPreview v-else-if="activeTab === 'output'" :key="`output-${queryStore.database}`" />
-      <QueryImport
-        v-if="queryStore.adapter.importSqlFilter || queryStore.adapter.placeholder"
-        :key="`import-${queryStore.database}`"
-        v-show="activeTab === 'import'"
-      />
-      <SchemaImport
-        v-if="queryStore.adapter.importSchemaSql || queryStore.adapter.placeholder"
-        :key="`schema-${queryStore.database}`"
-        v-show="activeTab === 'schema'"
-      />
-      <DatabaseList v-if="activeTab === 'databases'" />
-      <SettingsPage v-if="activeTab === 'settings'" />
+      <section
+        v-if="!queryStore.databaseReady"
+        aria-label="Loading database"
+        :aria-busy="!!queryStore.databaseLoading"
+      >
+        <p v-if="queryStore.databaseLoadError" role="alert">{{ queryStore.databaseLoadError }}</p>
+        <p v-else role="status">Loading {{ databaseDefinitions[queryStore.database].label }}…</p>
+        <button
+          v-if="queryStore.databaseLoadError"
+          type="button"
+          :disabled="!!queryStore.databaseLoading"
+          aria-label="Retry loading the selected database"
+          @click="queryStore.changeDatabase(queryStore.database)"
+        >
+          Try again
+        </button>
+      </section>
+      <template v-else>
+        <QueryBuilder v-if="activeTab === 'builder'" :key="`builder-${queryStore.database}`" />
+        <QueryPreview v-else-if="activeTab === 'output'" :key="`output-${queryStore.database}`" />
+        <QueryImport
+          v-if="queryStore.adapter.importSqlFilter || queryStore.adapter.placeholder"
+          :key="`import-${queryStore.database}`"
+          v-show="activeTab === 'import'"
+        />
+        <SchemaImport
+          v-if="queryStore.adapter.importSchemaSql || queryStore.adapter.placeholder"
+          :key="`schema-${queryStore.database}`"
+          v-show="activeTab === 'schema'"
+        />
+        <DatabaseList v-if="activeTab === 'databases'" />
+      </template>
     </main>
   </div>
 </template>
@@ -90,7 +133,7 @@ watch(
 .main-content {
   max-width: 960px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 2rem 1.5rem 0;
 }
 
 .builder-active {

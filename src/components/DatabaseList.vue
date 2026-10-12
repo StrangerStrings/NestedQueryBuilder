@@ -11,8 +11,9 @@ watch(() => queryStore.database, () => {
   pendingDatabase.value = null
 }, { flush: 'sync' })
 
-// Require a second click on the same target before clearing the current query.
+// Confirm a switch and keep selection locked while the new database loads.
 function selectDatabase(database: DatabaseId) {
+  if (queryStore.databaseLoading) return
   if (database === queryStore.database) {
     pendingDatabase.value = null
     return
@@ -24,7 +25,7 @@ function selectDatabase(database: DatabaseId) {
   }
 
   pendingDatabase.value = null
-  queryStore.changeDatabase(database)
+  void queryStore.changeDatabase(database)
 }
 </script>
 
@@ -34,12 +35,22 @@ function selectDatabase(database: DatabaseId) {
       <span class="material-symbols-outlined" aria-hidden="true">warning</span>
       Query will be wiped when changing database
     </p>
-    <div class="database-grid" role="group" aria-label="Database target">
+    <p v-if="queryStore.databaseLoading" role="status">
+      Loading {{ databaseDefinitions[queryStore.databaseLoading].label }}…
+    </p>
+    <p v-if="queryStore.databaseLoadError" role="alert">{{ queryStore.databaseLoadError }}</p>
+    <div
+      class="database-grid"
+      role="group"
+      aria-label="Database target"
+      :aria-busy="!!queryStore.databaseLoading"
+    >
       <button
         v-for="(definition, id) in databaseDefinitions"
         :key="id"
         type="button"
         class="database-button"
+        :disabled="!!queryStore.databaseLoading"
         :aria-pressed="queryStore.database === id"
         :aria-label="pendingDatabase === id ? `Confirm Change to ${definition.label} ${definition.version}` : `${definition.label} ${definition.version}`"
         aria-describedby="database-warning"
@@ -127,6 +138,11 @@ function selectDatabase(database: DatabaseId) {
 
 .database-button:hover {
   background: var(--surface-database-hover);
+}
+
+.database-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .database-button[aria-pressed='true'] {

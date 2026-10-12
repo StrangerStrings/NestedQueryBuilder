@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import type { ConditionValue, QueryCondition, QueryGroup } from '../types/query'
 import type { DatabaseOperator, ValueDataType } from '../types/databaseOperator'
 import { databaseDefinitions } from '../databases/DatabaseDefinitions'
@@ -13,7 +13,12 @@ import type { ConditionColour } from '../colours/palette'
 import { createId } from '../utils/createId'
 import { findGroupById } from '../utils/queryTree'
 import { convertConditionValue } from '../utils/convertConditionValue'
-import type { DatabaseAdapter, FilterImportResult, SchemaImportResult, SqlResult } from '../types/databaseAdapter'
+import type {
+  DatabaseAdapter,
+  FilterImportResult,
+  SchemaImportResult,
+  SqlResult,
+} from '../types/databaseAdapter'
 import type { DatabaseId } from '../databases/DatabaseDefinitions'
 export type { DatabaseId } from '../databases/DatabaseDefinitions'
 
@@ -196,20 +201,57 @@ function getConditions(group: QueryGroup): QueryCondition[] {
   )
 }
 
-// Manage the query tree and its persistent field-colour assignments.
+// Manage the query tree, on-demand database loading, and persistent field colours.
 export const useQueryStore = defineStore('query', () => {
   const database = ref<DatabaseId>('postgresql')
-  const schemaFields = ref<string[]>([])
-  const query = ref<QueryGroup>(createInitialQuery())
+  const loadedAdapter = shallowRef<DatabaseAdapter>()
+  const databaseLoading = ref<DatabaseId | null>(null)
+  const databaseLoadError = ref('')
+  // Mount database-dependent views only after the initial adapter is available.
+  const databaseReady = computed(() => loadedAdapter.value !== undefined)
 
-  // Resolve capabilities and SQL operations from the active database adapter.
-  const adapter = computed<DatabaseAdapter>(() => databaseDefinitions[database.value])
+  try {
+    const savedDatabase = localStorage.getItem('query-builder.database')
+    if (savedDatabase && Object.prototype.hasOwnProperty.call(databaseDefinitions, savedDatabase)) {
+      database.value = savedDatabase as DatabaseId
+    }
+  } catch {
+    // Keep PostgreSQL as the default when storage is unavailable.
+  }
+
+  const schemaFields = ref<string[]>([])
+  const query = ref<QueryGroup>(
+    database.value === 'postgresql' ? createInitialQuery() : createEmptyQuery(),
+  )
+
+  // Persist the database selection immediately without saving query or schema contents.
+  watch(
+    database,
+    (selectedDatabase) => {
+      try {
+        localStorage.setItem('query-builder.database', selectedDatabase)
+      } catch {
+        // Keep the in-memory selection when storage is unavailable.
+      }
+    },
+    { flush: 'sync' },
+  )
+
+  // Require initialization before exposing database capabilities to query views.
+  const adapter = computed<DatabaseAdapter>(() => {
+    if (!loadedAdapter.value) throw new Error('The selected database has not loaded yet.')
+    return loadedAdapter.value
+  })
   const operators = computed(() => adapter.value.operators)
 
   // Preserve the previous schema suggestions unless the entire import succeeds.
   function importSchemaSql(sql: string): SchemaImportResult {
     const importer = adapter.value.importSchemaSql
-    if (!importer) return { success: false, error: `${adapter.value.label} ${adapter.value.presentation?.schemaImportLabel ?? 'schema'} import is not supported.` }
+    if (!importer)
+      return {
+        success: false,
+        error: `${adapter.value.label} ${adapter.value.presentation?.schemaImportLabel ?? 'schema'} import is not supported.`,
+      }
     const result = importer(sql)
     if (result.success) schemaFields.value = result.fields
     return result
@@ -221,7 +263,14 @@ export const useQueryStore = defineStore('query', () => {
   // Replace the tree on successful import; the existing watcher assigns imported condition colours.
   function importSqlFilter(filter: string): FilterImportResult {
     const importer = adapter.value.importSqlFilter
-    if (!importer) return { success: false, error: { kind: 'unsupported-expression', message: `${adapter.value.label} ${adapter.value.presentation?.queryImportLabel ?? 'SQL filter'} import is not supported.` } }
+    if (!importer)
+      return {
+        success: false,
+        error: {
+          kind: 'unsupported-expression',
+          message: `${adapter.value.label} ${adapter.value.presentation?.queryImportLabel ?? 'SQL filter'} import is not supported.`,
+        },
+      }
     const result = importer(filter)
     if (result.success) {
       query.value = result.tree
@@ -274,7 +323,9 @@ export const useQueryStore = defineStore('query', () => {
     Object.assign(condition, { operatorId, value })
     if (database.value === 'elasticsearch' && condition.parameters !== undefined) {
       const supported = getElasticsearchParameterNames(operatorId)
-      condition.parameters = condition.parameters.filter((parameter) => supported.includes(parameter.name))
+      condition.parameters = condition.parameters.filter((parameter) =>
+        supported.includes(parameter.name),
+      )
     }
     return true
   }
@@ -294,17 +345,24 @@ export const useQueryStore = defineStore('query', () => {
   // Store supported Raw drafts and filter combined Elasticsearch operator/parameter updates.
   function updateCondition(
     conditionId: string,
-    updates: Partial<Pick<QueryCondition, 'field' | 'operatorId' | 'value' | 'rawSql' | 'parameters'>>,
+    updates: Partial<
+      Pick<QueryCondition, 'field' | 'operatorId' | 'value' | 'rawSql' | 'parameters'>
+    >,
   ) {
     const condition = findConditionById(query.value, conditionId)
     if (!condition) return
 
     if (updates.rawSql !== undefined) {
-      if (adapter.value.rawCondition || adapter.value.parseRawCondition) condition.rawSql = updates.rawSql
+      if (adapter.value.rawCondition || adapter.value.parseRawCondition)
+        condition.rawSql = updates.rawSql
       return
     }
 
-    if (updates.field?.modifier != null && !adapter.value.fieldModifiers?.includes(updates.field.modifier)) return
+    if (
+      updates.field?.modifier != null &&
+      !adapter.value.fieldModifiers?.includes(updates.field.modifier)
+    )
+      return
 
     if (updates.operatorId !== undefined) {
       if (!changeConditionOperator(conditionId, updates.operatorId)) return
@@ -317,7 +375,9 @@ export const useQueryStore = defineStore('query', () => {
       condition.parameters = updates.parameters
       if (updates.operatorId !== undefined && condition.parameters !== undefined) {
         const supported = getElasticsearchParameterNames(condition.operatorId)
-        condition.parameters = condition.parameters.filter((parameter) => supported.includes(parameter.name))
+        condition.parameters = condition.parameters.filter((parameter) =>
+          supported.includes(parameter.name),
+        )
       }
     }
   }
@@ -340,13 +400,30 @@ export const useQueryStore = defineStore('query', () => {
     return [...fields]
   })
 
-  // Clear query and schema state only when changing to a different supported database.
-  function changeDatabase(next: DatabaseId) {
-    if (next === database.value || !(next in databaseDefinitions)) return
+  // Load before switching so failures preserve the active database, query, and schema.
+  async function changeDatabase(next: DatabaseId) {
+    if (
+      databaseLoading.value ||
+      (next === database.value && databaseReady.value) ||
+      !Object.prototype.hasOwnProperty.call(databaseDefinitions, next)
+    )
+      return
 
-    database.value = next
-    schemaFields.value = []
-    query.value = createEmptyQuery()
+    databaseLoading.value = next
+    databaseLoadError.value = ''
+    try {
+      const nextAdapter = await databaseDefinitions[next].load()
+      loadedAdapter.value = nextAdapter
+      if (next !== database.value) {
+        schemaFields.value = []
+        query.value = createEmptyQuery()
+        database.value = next
+      }
+    } catch {
+      databaseLoadError.value = `Could not load ${databaseDefinitions[next].label}. Please try again.`
+    } finally {
+      databaseLoading.value = null
+    }
   }
 
   function cycleGroupMode(groupId: string) {
@@ -383,11 +460,7 @@ export const useQueryStore = defineStore('query', () => {
   }
 
   // Move a direct child to an original-array boundary (0..length), not a final index.
-  function moveNode(
-    parentGroupId: string,
-    nodeId: string,
-    insertionIndex: number,
-  ): boolean {
+  function moveNode(parentGroupId: string, nodeId: string, insertionIndex: number): boolean {
     const parent = findGroupById(query.value, parentGroupId)
     if (
       !parent ||
@@ -395,7 +468,8 @@ export const useQueryStore = defineStore('query', () => {
       !Number.isInteger(insertionIndex) ||
       insertionIndex < 0 ||
       insertionIndex > parent.children.length
-    ) return false
+    )
+      return false
 
     const nodeIndex = parent.children.findIndex((child) => child.id === nodeId)
     const node = parent.children[nodeIndex]
@@ -425,7 +499,8 @@ export const useQueryStore = defineStore('query', () => {
       !Number.isInteger(insertionIndex) ||
       insertionIndex < 0 ||
       insertionIndex > destination.children.length
-    ) return false
+    )
+      return false
 
     const conditionIndex = source.children.findIndex(
       (child) => child.kind === 'condition' && child.id === conditionId,
@@ -492,6 +567,10 @@ export const useQueryStore = defineStore('query', () => {
 
   return {
     database,
+    loadedAdapter,
+    databaseReady,
+    databaseLoading,
+    databaseLoadError,
     adapter,
     schemaFields,
     importSchemaSql,

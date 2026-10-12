@@ -14,17 +14,14 @@ const emit = defineEmits<{
 const operatorDescriptionId = useId()
 
 // Resolve catalogue wording without making dialect assumptions in the shared control.
-const selectedOperator = computed(
-  () => props.options.find((operator) => operator.id === props.modelValue),
+const selectedOperator = computed(() =>
+  props.options.find((operator) => operator.id === props.modelValue),
 )
 
 // Allow all input shapes and value types implemented by the shared editor.
 function isOperatorDisabled(operator: DatabaseOperator): boolean {
   const input = operator.valueInput
-  return (
-    input.hasValue &&
-    !input.dataTypes.some((type) => type !== 'duration')
-  )
+  return input.hasValue && !input.dataTypes.some((type) => type !== 'duration')
 }
 </script>
 
@@ -56,7 +53,12 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
         >
           info
         </span>
-        <span v-if="selectedOperator" :id="operatorDescriptionId" class="operator-tooltip" role="tooltip">
+        <span
+          v-if="selectedOperator"
+          :id="operatorDescriptionId"
+          class="operator-tooltip"
+          role="tooltip"
+        >
           {{ selectedOperator.description }}
         </span>
       </span>
@@ -114,7 +116,7 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
 }
 
 .operator-info-wrapper:hover .operator-tooltip,
-.operator-input-row:focus-within .operator-tooltip {
+select:focus-visible ~ .operator-info-wrapper .operator-tooltip {
   visibility: visible;
   opacity: 1;
 }

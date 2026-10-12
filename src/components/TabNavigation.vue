@@ -14,18 +14,20 @@ const tabGroups = [
       { id: 'output', label: 'Output' },
     ],
   },
-  { position: 'right', tabs: [{ id: 'settings', label: 'Settings' }] },
 ] as const
 
 // Hide unavailable import views while retaining the existing placeholder database navigation.
-const visibleTabGroups = computed(() => tabGroups.map((group) => ({
-  ...group,
-  tabs: group.tabs.filter((tab) =>
-    queryStore.adapter.placeholder ||
-    (tab.id !== 'import' || !!queryStore.adapter.importSqlFilter) &&
-    (tab.id !== 'schema' || !!queryStore.adapter.importSchemaSql),
-  ),
-})))
+const visibleTabGroups = computed(() =>
+  tabGroups.map((group) => ({
+    ...group,
+    tabs: group.tabs.filter(
+      (tab) =>
+        queryStore.adapter.placeholder ||
+        ((tab.id !== 'import' || !!queryStore.adapter.importSqlFilter) &&
+          (tab.id !== 'schema' || !!queryStore.adapter.importSchemaSql)),
+    ),
+  })),
+)
 
 type Tab = (typeof tabGroups)[number]['tabs'][number]['id']
 
@@ -52,8 +54,21 @@ const emit = defineEmits<{
         type="button"
         :class="{ active: activeTab === tab.id }"
         :aria-current="activeTab === tab.id ? 'page' : undefined"
+        :aria-label="
+          tab.id === 'databases'
+            ? `Databases, current database: ${queryStore.adapter.label}`
+            : undefined
+        "
         @click="emit('select', tab.id)"
       >
+        <img
+          v-if="tab.id === 'databases'"
+          class="database-icon"
+          :src="queryStore.adapter.icon"
+          alt=""
+          width="20"
+          height="20"
+        />
         {{ tab.label }}
       </button>
     </div>
@@ -65,7 +80,6 @@ const emit = defineEmits<{
   display: grid;
   grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
   flex: 1;
-  padding: 0 1.5rem;
   background: var(--surface-navigation);
 }
 
@@ -78,11 +92,10 @@ const emit = defineEmits<{
   justify-content: center;
 }
 
-.tab-group.right {
-  justify-content: flex-end;
-}
-
 button {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
   padding: 0.75rem 1rem;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -95,5 +108,15 @@ button.active {
   border-bottom-color: var(--accent-primary);
   color: var(--text-primary);
   font-weight: 600;
+}
+
+.database-icon {
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Keep the monochrome database icon visible on dark navigation surfaces. */
+:global(:root[data-theme='dark'] .tab-navigation .database-icon) {
+  filter: invert(1);
 }
 </style>

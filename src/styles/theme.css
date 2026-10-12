@@ -132,12 +132,12 @@
   --condition-invalid-accent: #b0aabd;
   --text-condition-warning: #d0cbdc;
   /* Borders also colour mode labels, so keep them bright against each group surface. */
-  --group-default-surface: #19212d;
-  --group-default-border: #94aac6;
+  --group-default-surface: #414650;
+  --group-default-border: #c2bedf;
   --group-all-surface: #263141;
   --group-all-border: #afbed2;
-  --group-none-surface: #363645;
-  --group-none-border: #c7bfd8;
+  --group-none-surface: #19212d;
+  --group-none-border: #94aac6;
 }
 
 input::placeholder,

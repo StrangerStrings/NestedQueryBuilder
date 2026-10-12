@@ -1,18 +1,47 @@
 import type {
-  ColumnDefinition, CreateTableStmt, DeferSubclause, Expr, ForeignKeyClause, IndexedColumn,
-  NamedColumnConstraint, NamedTableConstraint, ResolveType, SortOrder, SortedColumn, Type as DeclaredType,
+  ColumnDefinition,
+  CreateTableStmt,
+  DeferSubclause,
+  Expr,
+  ForeignKeyClause,
+  IndexedColumn,
+  NamedColumnConstraint,
+  NamedTableConstraint,
+  ResolveType,
+  SortOrder,
+  SortedColumn,
+  Type as DeclaredType,
 } from 'sqlite3-parser/sqlite-3.53.0'
-import { asciiLower, validateSqliteIdentifier, validateSqliteSchemaExpression } from '../parsing/validateExpression'
 import {
-  atWord, rejectSchema, requireStart, takeCollationName, takeExpressionSpan, takeName, takeSymbol, takeWord,
+  asciiLower,
+  validateSqliteIdentifier,
+  validateSqliteSchemaExpression,
+} from '../parsing/validateExpression'
+import {
+  atWord,
+  rejectSchema,
+  requireStart,
+  takeCollationName,
+  takeExpressionSpan,
+  takeName,
+  takeSymbol,
+  takeWord,
 } from './cursor'
 import type { SchemaCursor } from './cursor'
 
-export type SqliteSchemaTable = { readonly segments: readonly string[]; readonly columns: readonly string[] }
+export type SqliteSchemaTable = {
+  readonly segments: readonly string[]
+  readonly columns: readonly string[]
+}
 type TableOptions = { readonly strict: boolean; readonly withoutRowid: boolean }
 
 // Validate schema operands directly against their original prepared source without reparsing slices.
-function takeExpression(cursor: SchemaCursor, expr: Expr, context: 'default' | 'check', bareDefault = false): void {
+function takeExpression(
+  cursor: SchemaCursor,
+  expr: Expr,
+  context: 'default' | 'check',
+  bareDefault = false,
+): void {
   const error = validateSqliteSchemaExpression(cursor.prepared, expr, context, bareDefault)
   if (error) throw new Error(error.error.message)
   takeExpressionSpan(cursor, expr.span)
@@ -20,9 +49,19 @@ function takeExpression(cursor: SchemaCursor, expr: Expr, context: 'default' | '
 
 // Declared type sizes contain one decimal literal, optionally preceded by a unary sign.
 function takeTypeSize(cursor: SchemaCursor, expr: Expr): void {
-  if (expr.type !== 'NumericLiteral' &&
-      !(expr.type === 'UnaryExpr' && (expr.op === 'Positive' || expr.op === 'Negative') && expr.expr.type === 'NumericLiteral')) {
-    rejectSchema(cursor, 'Declared type parameters require signed decimal numeric literals.', expr.span)
+  if (
+    expr.type !== 'NumericLiteral' &&
+    !(
+      expr.type === 'UnaryExpr' &&
+      (expr.op === 'Positive' || expr.op === 'Negative') &&
+      expr.expr.type === 'NumericLiteral'
+    )
+  ) {
+    rejectSchema(
+      cursor,
+      'Declared type parameters require signed decimal numeric literals.',
+      expr.span,
+    )
   }
   takeExpression(cursor, expr, 'default', true)
 }
@@ -32,13 +71,22 @@ function takeDeclaredType(cursor: SchemaCursor, type: DeclaredType): void {
   requireStart(cursor, type.span)
   const end = type.span.offset + type.span.length
   let words = 0
-  while (cursor.tokens[cursor.index] && cursor.tokens[cursor.index]!.native.span.offset < end &&
-         cursor.tokens[cursor.index]!.name !== 'LP') {
+  while (
+    cursor.tokens[cursor.index] &&
+    cursor.tokens[cursor.index]!.native.span.offset < end &&
+    cursor.tokens[cursor.index]!.name !== 'LP'
+  ) {
     const token = cursor.tokens[cursor.index]!
-    if (!/^(?:["`\[]|[A-Za-z_\u0080-\uffff])/.test(token.fragment)) {
+    if (!/^(?:["`[]|[A-Za-z_\u0080-\uffff])/.test(token.fragment)) {
       rejectSchema(cursor, 'Declared type names require identifier words.', token.native.span)
     }
-    const error = validateSqliteIdentifier(cursor.prepared, token.native.span, type.name, 'unsupported-value', true)
+    const error = validateSqliteIdentifier(
+      cursor.prepared,
+      token.native.span,
+      type.name,
+      'unsupported-value',
+      true,
+    )
     if (error) throw new Error(error.error.message)
     cursor.index += 1
     words += 1
@@ -62,7 +110,10 @@ function takeDeclaredType(cursor: SchemaCursor, type: DeclaredType): void {
 }
 
 // Account for an attached naming prefix so staged or discarded CONSTRAINT names cannot leak.
-function takeConstraintPrefix(cursor: SchemaCursor, named: NamedColumnConstraint | NamedTableConstraint): void {
+function takeConstraintPrefix(
+  cursor: SchemaCursor,
+  named: NamedColumnConstraint | NamedTableConstraint,
+): void {
   if (named.name !== undefined) {
     takeWord(cursor, 'CONSTRAINT')
     takeName(cursor, named.name)
@@ -75,7 +126,8 @@ function takeConstraintPrefix(cursor: SchemaCursor, named: NamedColumnConstraint
 // Accept only native ASC/DESC ordering and require the corresponding intact source word.
 function takeOrder(cursor: SchemaCursor, order: SortOrder | undefined): void {
   if (order !== undefined) {
-    if (order !== 'Asc' && order !== 'Desc') rejectSchema(cursor, 'Unsupported SQLite column ordering.')
+    if (order !== 'Asc' && order !== 'Desc')
+      rejectSchema(cursor, 'Unsupported SQLite column ordering.')
     takeWord(cursor, order)
   }
 }
@@ -99,7 +151,11 @@ function takePlainColumns(cursor: SchemaCursor, columns: readonly IndexedColumn[
     const column = columns[index]!
     if (index) takeSymbol(cursor, 'COMMA')
     if (column.collationName !== undefined || column.order !== undefined) {
-      rejectSchema(cursor, 'Foreign-key column lists cannot use COLLATE or ordering.', column.colName.span)
+      rejectSchema(
+        cursor,
+        'Foreign-key column lists cannot use COLLATE or ordering.',
+        column.colName.span,
+      )
     }
     takeName(cursor, column.colName)
   }
@@ -113,11 +169,20 @@ function takeSortedColumns(cursor: SchemaCursor, columns: readonly SortedColumn[
   for (let index = 0; index < columns.length; index += 1) {
     const column = columns[index]!
     if (index) takeSymbol(cursor, 'COMMA')
-    if (column.nulls !== undefined) rejectSchema(cursor, 'NULLS ordering is outside the supported schema subset.', column.expr.span)
+    if (column.nulls !== undefined)
+      rejectSchema(
+        cursor,
+        'NULLS ordering is outside the supported schema subset.',
+        column.expr.span,
+      )
     const expr = column.expr
     const reference = expr.type === 'CollateExpr' ? expr.expr : expr
     if (reference.type !== 'Id') {
-      rejectSchema(cursor, 'PRIMARY KEY and UNIQUE require unqualified column names, not expressions.', expr.span)
+      rejectSchema(
+        cursor,
+        'PRIMARY KEY and UNIQUE require unqualified column names, not expressions.',
+        expr.span,
+      )
     }
     takeName(cursor, reference)
     if (expr.type === 'CollateExpr') {
@@ -147,11 +212,20 @@ function takeReferences(cursor: SchemaCursor, clause: ForeignKeyClause): void {
       takeWord(cursor, 'MATCH')
       const match = takeName(cursor, arg.name)
       if (!['simple', 'full', 'partial'].includes(asciiLower(match))) {
-        rejectSchema(cursor, 'Only SIMPLE, FULL, and PARTIAL foreign-key MATCH names are supported.', arg.name.span)
+        rejectSchema(
+          cursor,
+          'Only SIMPLE, FULL, and PARTIAL foreign-key MATCH names are supported.',
+          arg.name.span,
+        )
       }
       continue
     }
-    if (arg.type === 'OnInsertRefArg') rejectSchema(cursor, 'ON INSERT foreign-key actions are outside the supported subset.', arg.span)
+    if (arg.type === 'OnInsertRefArg')
+      rejectSchema(
+        cursor,
+        'ON INSERT foreign-key actions are outside the supported subset.',
+        arg.span,
+      )
     takeWord(cursor, 'ON')
     takeWord(cursor, arg.type === 'OnDeleteRefArg' ? 'DELETE' : 'UPDATE')
     switch (arg.action) {
@@ -226,7 +300,10 @@ function takeColumnConstraints(cursor: SchemaCursor, column: ColumnDefinition): 
     const named = column.constraints[index]!
     const constraint = named.constraint
     if (constraint.type === 'GeneratedColumnConstraint') {
-      rejectSchema(cursor, 'Generated columns, including abbreviated AS forms, are outside the supported schema subset.')
+      rejectSchema(
+        cursor,
+        'Generated columns, including abbreviated AS forms, are outside the supported schema subset.',
+      )
     }
     takeConstraintPrefix(cursor, named)
     switch (constraint.type) {
@@ -262,14 +339,25 @@ function takeColumnConstraints(cursor: SchemaCursor, column: ColumnDefinition): 
         break
       case 'DeferColumnConstraint': {
         const previous = column.constraints[index - 1]?.constraint
-        if (named.name !== undefined || previous?.type !== 'ForeignKeyColumnConstraint' || previous.deferClause !== undefined) {
-          rejectSchema(cursor, 'DEFERRABLE must immediately follow one REFERENCES clause without a naming prefix.', constraint.span)
+        if (
+          named.name !== undefined ||
+          previous?.type !== 'ForeignKeyColumnConstraint' ||
+          previous.deferClause !== undefined
+        ) {
+          rejectSchema(
+            cursor,
+            'DEFERRABLE must immediately follow one REFERENCES clause without a naming prefix.',
+            constraint.span,
+          )
         }
         takeDefer(cursor, constraint.clause)
         break
       }
       default:
-        rejectSchema(cursor, 'This inline constraint is outside the supported SQLite schema subset.')
+        rejectSchema(
+          cursor,
+          'This inline constraint is outside the supported SQLite schema subset.',
+        )
     }
   }
 }
@@ -280,7 +368,12 @@ function takeTableConstraint(cursor: SchemaCursor, named: NamedTableConstraint):
   const constraint = named.constraint
   switch (constraint.type) {
     case 'PrimaryKeyTableConstraint':
-      if (constraint.autoIncrement) rejectSchema(cursor, 'Table-level AUTOINCREMENT is outside the supported schema subset.', constraint.span)
+      if (constraint.autoIncrement)
+        rejectSchema(
+          cursor,
+          'Table-level AUTOINCREMENT is outside the supported schema subset.',
+          constraint.span,
+        )
       takeWord(cursor, 'PRIMARY')
       takeWord(cursor, 'KEY')
       takeSortedColumns(cursor, constraint.columns)
@@ -322,7 +415,10 @@ function takeTableOptions(cursor: SchemaCursor, flags: number): TableOptions {
       takeWord(cursor, 'ROWID')
       withoutRowid = true
     } else {
-      rejectSchema(cursor, 'Unsupported, quoted, or repeated SQLite table option; expected STRICT or WITHOUT ROWID.')
+      rejectSchema(
+        cursor,
+        'Unsupported, quoted, or repeated SQLite table option; expected STRICT or WITHOUT ROWID.',
+      )
     }
     count += 1
   }
@@ -333,34 +429,69 @@ function takeTableOptions(cursor: SchemaCursor, flags: number): TableOptions {
 }
 
 // Enforce STRICT syntax and bounded AUTOINCREMENT without emulating unrelated execution checks.
-function validateColumnOptions(cursor: SchemaCursor, column: ColumnDefinition, options: TableOptions): void {
+function validateColumnOptions(
+  cursor: SchemaCursor,
+  column: ColumnDefinition,
+  options: TableOptions,
+): void {
   const type = column.colType
   if (options.strict) {
-    if (!type || type.size !== undefined || !['int', 'integer', 'real', 'text', 'blob', 'any'].includes(asciiLower(type.name))) {
-      rejectSchema(cursor, 'STRICT columns require INT, INTEGER, REAL, TEXT, BLOB, or ANY without type parameters.', type?.span ?? column.colName.span)
+    if (
+      !type ||
+      type.size !== undefined ||
+      !['int', 'integer', 'real', 'text', 'blob', 'any'].includes(asciiLower(type.name))
+    ) {
+      rejectSchema(
+        cursor,
+        'STRICT columns require INT, INTEGER, REAL, TEXT, BLOB, or ANY without type parameters.',
+        type?.span ?? column.colName.span,
+      )
     }
     let words = 0
     for (const token of cursor.tokens) {
-      if (token.native.span.offset >= type.span.offset && token.native.span.offset < type.span.offset + type.span.length) words += 1
+      if (
+        token.native.span.offset >= type.span.offset &&
+        token.native.span.offset < type.span.offset + type.span.length
+      )
+        words += 1
     }
-    if (words !== 1) rejectSchema(cursor, 'STRICT declared types require one intact type-name token.', type.span)
+    if (words !== 1)
+      rejectSchema(cursor, 'STRICT declared types require one intact type-name token.', type.span)
   }
   for (const named of column.constraints) {
     const constraint = named.constraint
-    if (constraint.type === 'PrimaryKeyColumnConstraint' && constraint.autoIncrement &&
-        (!type || type.size !== undefined || asciiLower(type.name) !== 'integer' ||
-         constraint.order === 'Desc' || options.withoutRowid)) {
-      rejectSchema(cursor, 'AUTOINCREMENT requires an unparameterized inline INTEGER PRIMARY KEY without DESC or WITHOUT ROWID.', constraint.span)
+    if (
+      constraint.type === 'PrimaryKeyColumnConstraint' &&
+      constraint.autoIncrement &&
+      (!type ||
+        type.size !== undefined ||
+        asciiLower(type.name) !== 'integer' ||
+        constraint.order === 'Desc' ||
+        options.withoutRowid)
+    ) {
+      rejectSchema(
+        cursor,
+        'AUTOINCREMENT requires an unparameterized inline INTEGER PRIMARY KEY without DESC or WITHOUT ROWID.',
+        constraint.span,
+      )
     }
   }
 }
 
 // Validate one native explicit-column table by consuming all significant source tokens in order.
-export function takeSqliteTable(cursor: SchemaCursor, statement: CreateTableStmt): SqliteSchemaTable {
+export function takeSqliteTable(
+  cursor: SchemaCursor,
+  statement: CreateTableStmt,
+): SqliteSchemaTable {
   if (statement.body.type !== 'ColumnsAndConstraintsCreateTableBody') {
-    rejectSchema(cursor, 'CREATE TABLE AS SELECT is outside the supported SQLite schema subset.', statement.body.span)
+    rejectSchema(
+      cursor,
+      'CREATE TABLE AS SELECT is outside the supported SQLite schema subset.',
+      statement.body.span,
+    )
   }
-  if (!statement.body.columns.length) rejectSchema(cursor, 'CREATE TABLE must declare at least one column.', statement.body.span)
+  if (!statement.body.columns.length)
+    rejectSchema(cursor, 'CREATE TABLE must declare at least one column.', statement.body.span)
   takeWord(cursor, 'CREATE')
   if (statement.temporary) {
     if (atWord(cursor, 'TEMPORARY')) takeWord(cursor, 'TEMPORARY')
@@ -373,7 +504,8 @@ export function takeSqliteTable(cursor: SchemaCursor, statement: CreateTableStmt
     takeWord(cursor, 'EXISTS')
   }
   const segments: string[] = []
-  if (statement.tblName.alias !== undefined) rejectSchema(cursor, 'CREATE TABLE aliases are unsupported.', statement.tblName.alias.span)
+  if (statement.tblName.alias !== undefined)
+    rejectSchema(cursor, 'CREATE TABLE aliases are unsupported.', statement.tblName.alias.span)
   if (statement.tblName.dbName !== undefined) {
     segments.push(takeName(cursor, statement.tblName.dbName, true))
     takeSymbol(cursor, 'DOT')
