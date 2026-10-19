@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
+import { formatDialect, postgresql } from 'sql-formatter'
 import ConditionFieldInput from './ConditionFieldInput.vue'
 import ConditionOperatorInput from './ConditionOperatorInput.vue'
 import ConditionValueInput from './ConditionValueInput/ConditionValueInput.vue'
@@ -38,6 +39,18 @@ const selectedOperator = computed(() =>
 // Generate the selected condition's standalone clause directly with adapter validation.
 const conditionSql = computed(() => {
   return queryStore.adapter.generateConditionSql(props.condition)
+})
+
+// Match the PostgreSQL output formatting while retaining invalid raw input and fallback SQL.
+const conditionPreviewSql = computed(() => {
+  const result = conditionSql.value
+  if (!result.success) return props.condition.rawSql ?? ''
+  if (queryStore.database !== 'postgresql') return result.sql
+  try {
+    return formatDialect(result.sql, { dialect: postgresql })
+  } catch {
+    return result.sql
+  }
 })
 
 // Display validation for the current raw condition.
@@ -191,7 +204,7 @@ const emit = defineEmits<{
         <QueryDisplay
           v-if="conditionSql.success || condition.rawSql !== undefined"
           class="condition-sql"
-          :query-text="conditionSql.success ? conditionSql.sql : (condition.rawSql ?? '')"
+          :query-text="conditionPreviewSql"
           :language="queryStore.adapter.queryFormat.highlightLanguage"
           :accessible-label="`Generated ${queryStore.adapter.label}${queryStore.adapter.presentation ? ` ${outputLabel}` : ''} condition`"
         />

@@ -96,8 +96,11 @@ function convertOperatorValue(
   }
 }
 
-// Preserve the existing startup example for the default database.
-function createInitialQuery(): QueryGroup {
+// Create the shared default example with operators supported by the selected database.
+function createInitialQuery(database: DatabaseId): QueryGroup {
+  const equalityOperator = database === 'elasticsearch' ? 'term' : database === 'mongodb' ? 'eq' : '='
+  const greaterThanOperator = database === 'elasticsearch' || database === 'mongodb' ? 'gt' : '>'
+
   return {
     kind: 'group',
     id: createId(),
@@ -107,58 +110,75 @@ function createInitialQuery(): QueryGroup {
         kind: 'condition',
         id: createId(),
         field: { name: 'status', modifier: null },
-        operatorId: '=',
-        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
+      },
+
+      {
+        kind: 'condition',
+        id: createId(),
+        field: { name: 'status', modifier: null },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: { name: 'tatters', modifier: null },
-        operatorId: '=',
-        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'yes' },
+        field: { name: 'status', modifier: null },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: { name: 'age', modifier: null },
-        operatorId: '=',
-        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: '35' },
+        field: { name: 'status', modifier: null },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: { name: 'asdf', modifier: null },
-        operatorId: '=',
-        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
+        field: { name: 'status', modifier: null },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: { name: 'trew', modifier: null },
-        operatorId: '=',
-        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
+        field: { name: 'status', modifier: null },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: { name: 'rewwer', modifier: null },
-        operatorId: '=',
-        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
+        field: { name: 'status', modifier: null },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
       },
       {
         kind: 'condition',
         id: createId(),
-        field: { name: 'age', modifier: null },
-        operatorId: '=',
-        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'online' },
+        field: { name: 'status', modifier: null },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
+      },
+      {
+        kind: 'condition',
+        id: createId(),
+        field: { name: 'status', modifier: null },
+        operatorId: equalityOperator,
+        value: { hasValue: true, dataType: 'text', dataShape: 'single', value: 'active' },
+      },
+      {
+        kind: 'condition',
+        id: createId(),
+        field: { name: 'score', modifier: null },
+        operatorId: greaterThanOperator,
+        value: { hasValue: true, dataType: 'number', dataShape: 'single', value: 9 },
       },
     ],
   }
-}
-
-// Start a database switch with an empty shared root and fresh identity.
-function createEmptyQuery(): QueryGroup {
-  return { kind: 'group', id: createId(), mode: 'all', children: [] }
 }
 
 function removeNodeFromGroup(group: QueryGroup, nodeId: string): boolean {
@@ -220,9 +240,7 @@ export const useQueryStore = defineStore('query', () => {
   }
 
   const schemaFields = ref<string[]>([])
-  const query = ref<QueryGroup>(
-    database.value === 'postgresql' ? createInitialQuery() : createEmptyQuery(),
-  )
+  const query = ref<QueryGroup>(createInitialQuery(database.value))
 
   // Persist the database selection immediately without saving query or schema contents.
   watch(
@@ -400,7 +418,7 @@ export const useQueryStore = defineStore('query', () => {
     return [...fields]
   })
 
-  // Load before switching so failures preserve the active database, query, and schema.
+  // Load before switching, then reset the query to the selected database’s default example.
   async function changeDatabase(next: DatabaseId) {
     if (
       databaseLoading.value ||
@@ -416,7 +434,7 @@ export const useQueryStore = defineStore('query', () => {
       loadedAdapter.value = nextAdapter
       if (next !== database.value) {
         schemaFields.value = []
-        query.value = createEmptyQuery()
+        query.value = createInitialQuery(next)
         database.value = next
       }
     } catch {

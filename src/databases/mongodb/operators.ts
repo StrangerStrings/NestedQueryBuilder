@@ -19,25 +19,25 @@ export const mongodbOperators = [
   {
     id: 'gt' as const,
     label: 'greater than',
-    description: 'Matches values greater than the supplied bound using MongoDB comparison semantics.',
+    description: 'Matches values greater than the supplied value.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: orderedTypes },
   },
   {
     id: 'gte' as const,
     label: 'greater than/equal',
-    description: 'Matches values greater than or equal to the supplied bound using MongoDB comparison semantics.',
+    description: 'Matches values greater than or equal to the supplied value.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: orderedTypes },
   },
   {
     id: 'lt' as const,
     label: 'less than',
-    description: 'Matches values less than the supplied bound using MongoDB comparison semantics.',
+    description: 'Matches values less than the supplied value.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: orderedTypes },
   },
   {
     id: 'lte' as const,
     label: 'less than/equal',
-    description: 'Matches values less than or equal to the supplied bound using MongoDB comparison semantics.',
+    description: 'Matches values less than or equal to the supplied value.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: orderedTypes },
   },
   {
@@ -61,7 +61,7 @@ export const mongodbOperators = [
   {
     id: 'regex' as const,
     label: 'matches regex',
-    description: 'Matches text using native MongoDB regex semantics, including inline flags, without an $options member or JavaScript regex validation.',
+    description: 'Matches text using a MongoDB regular expression. Inline flags are supported; a separate $options value is not.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
@@ -73,7 +73,7 @@ export const mongodbOperators = [
   {
     id: 'exists' as const,
     label: 'exists',
-    description: 'Checks field presence, including null values, rather than indexed-value existence.',
+    description: 'Matches fields present in the document, including null values.',
     valueInput: { hasValue: false },
   },
   {

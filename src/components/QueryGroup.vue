@@ -198,16 +198,16 @@ const emit = defineEmits<{
   select: [condition: QueryConditionModel]
 }>()
 
-// Select the new condition through the existing event flow, including in nested groups.
+// Select the new condition only when the condition panel is already open.
 function addCondition() {
   const condition = queryStore.addCondition(props.group.id)
-  if (condition) emit('select', condition)
+  if (condition && props.selectedConditionId) emit('select', condition)
 }
 
-// Select the initial condition created inside a new child group.
+// Select the new group's initial condition only when the condition panel is already open.
 function addGroup() {
   const condition = queryStore.addGroup(props.group.id)
-  if (condition) emit('select', condition)
+  if (condition && props.selectedConditionId) emit('select', condition)
 }
 
 // Narrow child nodes to conditions before rendering their editable button.
@@ -328,6 +328,7 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
   display: grid;
   gap: 0.5rem;
   padding: 0.75rem 1.2rem 2.75rem 2.3rem;
+  padding: 0.85rem 1.2rem 2.75rem 2.8rem;
   margin: 5px 0;
   border: 4px solid var(--group-border-color);
   border-radius: 36px;
