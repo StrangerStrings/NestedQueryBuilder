@@ -128,8 +128,14 @@ async function copySql() {
 </template>
 
 <style scoped>
+section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .sql-preview button {
   justify-self: start;
+  max-width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
@@ -147,6 +153,7 @@ async function copySql() {
 
 .sql-preview {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
   color: var(--text-muted);
   font-size: 0.875rem;
@@ -158,6 +165,7 @@ async function copySql() {
 
 .sql-preview-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
@@ -178,5 +186,15 @@ async function copySql() {
 
 .copy-error {
   color: var(--text-error);
+}
+
+@media (width < 768px) {
+  section {
+    padding-bottom: 1rem;
+  }
+
+  .sql-preview button {
+    min-height: 44px;
+  }
 }
 </style>

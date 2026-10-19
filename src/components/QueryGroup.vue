@@ -403,7 +403,9 @@ h3 {
   cursor: grab;
 }
 
-.group-drag-handle:focus-visible {
+.mode-badge:focus-visible,
+.group-drag-handle:focus-visible,
+.icon-button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -483,12 +485,74 @@ button {
 
 .query-group:hover:not(:has(.query-group:hover, .query-condition:hover))
   > .group-actions
-  > .delete-group-button {
+  > .delete-group-button,
+.query-group:focus-within > .group-actions > .delete-group-button {
   opacity: 1;
   pointer-events: auto;
 }
 
 .material-symbols-outlined {
   font-size: 1.3rem;
+}
+
+@media (width < 768px) {
+  .query-group {
+    display: flex;
+    flex-direction: column;
+    min-width: min-content;
+    padding: 0.5rem;
+    border-radius: 16px;
+  }
+
+  .mode-badge {
+    position: static;
+    align-self: flex-start;
+    transform: none;
+    min-width: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
+    /* Reserve a separate header target for the optional group drag handle. */
+    margin-right: 52px;
+    padding: 0.25rem 0.5rem;
+  }
+
+  h3 {
+    writing-mode: horizontal-tb;
+  }
+
+  .children {
+    /* Let nested groups retain their controls instead of compressing or clipping them. */
+    min-width: min-content;
+  }
+
+  .group-actions {
+    position: static;
+    align-self: flex-end;
+    margin-right: 0;
+  }
+
+  .icon-button,
+  .group-drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 0;
+  }
+
+  .group-drag-handle {
+    top: 0.5rem;
+    right: 0.5rem;
+    bottom: auto;
+    left: auto;
+  }
+
+  .delete-group-button {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 </style>

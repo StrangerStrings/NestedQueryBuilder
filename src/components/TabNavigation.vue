@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import BuilderSettings from './BuilderSettings.vue'
 import { useQueryStore } from '../stores/queryStore'
 
 const queryStore = useQueryStore()
+const mobileViewport = window.matchMedia('(width < 768px)')
+const isMobile = ref(mobileViewport.matches)
+const menuOpen = ref(false)
+const menu = ref<HTMLElement | null>(null)
+const burger = ref<HTMLButtonElement | null>(null)
 const tabGroups = [
   { position: 'left', tabs: [{ id: 'databases', label: 'Databases' }] },
   {
@@ -38,49 +44,139 @@ defineProps<{
 const emit = defineEmits<{
   select: [tab: Tab]
 }>()
+
+// Close the disclosure and keep focus on its visible trigger.
+function closeMenu() {
+  menuOpen.value = false
+  if (isMobile.value) burger.value?.focus()
+}
+
+// Toggle the phone navigation without changing the selected screen.
+function toggleMenu() {
+  if (menuOpen.value) closeMenu()
+  else menuOpen.value = true
+}
+
+// Emit every screen selection, including the already active screen.
+function selectTab(tab: Tab) {
+  closeMenu()
+  emit('select', tab)
+}
+
+// Dismiss the disclosure from any of its controls with Escape.
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !menuOpen.value) return
+  event.preventDefault()
+  closeMenu()
+}
+
+// Clear phone state and rescue focus when a responsive control becomes hidden.
+async function handleViewportChange() {
+  const focused = document.activeElement
+  const focusInMenu = focused instanceof Node && !!menu.value?.contains(focused)
+  const focusOnBurger = focused === burger.value
+  isMobile.value = mobileViewport.matches
+  menuOpen.value = false
+  await nextTick()
+  if (isMobile.value && focusInMenu) burger.value?.focus()
+  else if (!isMobile.value && (focusOnBurger || focusInMenu)) {
+    const target =
+      menu.value?.querySelector<HTMLButtonElement>('button[aria-current="page"]') ??
+      menu.value?.querySelector<HTMLButtonElement>('button')
+    target?.focus()
+  }
+}
+
+// Subscribe to the same breakpoint used by the navigation styles.
+onMounted(() => {
+  mobileViewport.addEventListener('change', handleViewportChange)
+})
+
+// Release the viewport subscription when navigation is removed.
+onUnmounted(() => {
+  mobileViewport.removeEventListener('change', handleViewportChange)
+})
 </script>
 
 <template>
-  <nav class="tab-navigation" aria-label="Query views">
-    <div
-      v-for="group in visibleTabGroups"
-      :key="group.position"
-      class="tab-group"
-      :class="group.position"
+  <nav class="tab-navigation" aria-label="Query views" @keydown="handleKeydown">
+    <button
+      ref="burger"
+      type="button"
+      class="menu-toggle"
+      :aria-label="menuOpen ? 'Close navigation menu' : 'Open navigation menu'"
+      :aria-expanded="menuOpen"
+      aria-controls="query-navigation-menu"
+      @click="toggleMenu"
     >
-      <button
-        v-for="tab in group.tabs"
-        :key="tab.id"
-        type="button"
-        :class="{ active: activeTab === tab.id }"
-        :aria-current="activeTab === tab.id ? 'page' : undefined"
-        :aria-label="
-          tab.id === 'databases'
-            ? `Databases, current database: ${queryStore.adapter.label}`
-            : undefined
-        "
-        @click="emit('select', tab.id)"
+      <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+      Menu
+    </button>
+    <div
+      id="query-navigation-menu"
+      ref="menu"
+      class="navigation-menu"
+      :hidden="isMobile && !menuOpen"
+    >
+      <div
+        v-for="group in visibleTabGroups"
+        :key="group.position"
+        class="tab-group"
+        :class="group.position"
       >
-        <img
-          v-if="tab.id === 'databases'"
-          class="database-icon"
-          :src="queryStore.adapter.icon"
-          alt=""
-          width="20"
-          height="20"
-        />
-        {{ tab.label }}
-      </button>
+        <button
+          v-for="tab in group.tabs"
+          :key="tab.id"
+          type="button"
+          :class="{ active: activeTab === tab.id }"
+          :aria-current="activeTab === tab.id ? 'page' : undefined"
+          :aria-label="
+            tab.id === 'databases'
+              ? `Databases, current database: ${queryStore.adapter.label}`
+              : undefined
+          "
+          @click="selectTab(tab.id)"
+        >
+          <img
+            v-if="tab.id === 'databases'"
+            class="database-icon"
+            :src="queryStore.adapter.icon"
+            alt=""
+            width="20"
+            height="20"
+          />
+          {{ tab.label }}
+        </button>
+      </div>
+      <div class="mobile-settings">
+        <p>Builder settings</p>
+        <BuilderSettings />
+      </div>
     </div>
   </nav>
 </template>
 
 <style scoped>
 .tab-navigation {
-  display: grid;
-  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  position: relative;
   flex: 1;
   background: var(--surface-navigation);
+}
+
+.navigation-menu {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+}
+
+.navigation-menu[hidden],
+.menu-toggle,
+.mobile-settings {
+  display: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--focus-ring-accent);
+  outline-offset: -3px;
 }
 
 .tab-group {
@@ -118,5 +214,50 @@ button.active {
 /* Keep the monochrome database icon visible on dark navigation surfaces. */
 :global(:root[data-theme='dark'] .tab-navigation .database-icon) {
   filter: invert(1);
+}
+
+@media (width < 768px) {
+  .menu-toggle {
+    display: inline-flex;
+    min-height: 48px;
+  }
+
+  .navigation-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: block;
+    max-height: calc(100vh - 49px);
+    max-height: calc(100dvh - 49px);
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.5rem;
+    background: var(--surface-navigation);
+    border: 1px solid var(--border-panel);
+  }
+
+  .tab-group {
+    flex-direction: column;
+  }
+
+  .tab-group button {
+    min-height: 44px;
+    width: 100%;
+    text-align: left;
+  }
+
+  .mobile-settings {
+    display: block;
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    border-top: 1px solid var(--border-panel);
+    color: var(--text-primary);
+  }
+
+  .mobile-settings p {
+    margin: 0 0 0.75rem;
+  }
 }
 </style>

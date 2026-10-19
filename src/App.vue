@@ -29,6 +29,7 @@ const QueryPreview = defineAsyncComponent({
 type Tab = 'builder' | 'output' | 'import' | 'schema' | 'databases'
 
 const activeTab = ref<Tab>('builder')
+const mobileEditorOpen = ref(false)
 const queryStore = useQueryStore()
 
 // Load the saved database before mounting views that use its capabilities.
@@ -65,7 +66,11 @@ watch(
 
 <template>
   <div class="app-shell" :class="{ 'builder-active': activeTab === 'builder' }">
-    <div v-if="queryStore.databaseReady" class="top-navigation" :inert="!!queryStore.databaseLoading">
+    <div
+      v-if="queryStore.databaseReady"
+      class="top-navigation"
+      :inert="!!queryStore.databaseLoading || mobileEditorOpen"
+    >
       <TabNavigation :active-tab="activeTab" @select="selectTab" />
     </div>
     <main class="main-content">
@@ -87,7 +92,11 @@ watch(
         </button>
       </section>
       <template v-else>
-        <QueryBuilder v-if="activeTab === 'builder'" :key="`builder-${queryStore.database}`" />
+        <QueryBuilder
+          v-if="activeTab === 'builder'"
+          :key="`builder-${queryStore.database}`"
+          @mobile-editor-change="mobileEditorOpen = $event"
+        />
         <QueryPreview v-else-if="activeTab === 'output'" :key="`output-${queryStore.database}`" />
         <QueryImport
           v-if="queryStore.adapter.importSqlFilter || queryStore.adapter.placeholder"
@@ -154,6 +163,17 @@ watch(
   min-height: 0;
   width: 100%;
   box-sizing: border-box;
+}
+
+@media (width < 768px) {
+  .top-navigation {
+    overflow: visible;
+  }
+
+  .builder-active .main-content {
+    min-width: 0;
+    padding: 0.5rem 0.25rem 0;
+  }
 }
 
 @media (min-width: 1200px) {

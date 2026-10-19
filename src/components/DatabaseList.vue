@@ -77,6 +77,11 @@ function selectDatabase(database: DatabaseId) {
 </template>
 
 <style scoped>
+section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .database-warning {
   display: flex;
   align-items: center;
@@ -87,6 +92,10 @@ function selectDatabase(database: DatabaseId) {
   border-radius: 0.5rem;
   background: var(--surface-notice);
   color: var(--text-secondary);
+}
+
+.database-warning .material-symbols-outlined {
+  flex-shrink: 0;
 }
 
 .database-grid {
@@ -104,6 +113,7 @@ function selectDatabase(database: DatabaseId) {
   justify-content: center;
   gap: 0.75rem;
   min-height: 120px;
+  min-width: 0;
   padding: 1rem 0.75rem;
   border: 0;
   border-radius: 0.75rem;
@@ -128,6 +138,8 @@ function selectDatabase(database: DatabaseId) {
 .database-name {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
   gap: 0.25rem;
 }
 
@@ -152,5 +164,20 @@ function selectDatabase(database: DatabaseId) {
 .database-button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--focus-ring-gap), 0 0 0 5px var(--focus-ring-database);
+}
+
+@media (width < 768px) {
+  section {
+    padding-bottom: 1rem;
+  }
+
+  .database-warning {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+  }
+
+  .database-button {
+    padding: 0.75rem 0.5rem;
+  }
 }
 </style>

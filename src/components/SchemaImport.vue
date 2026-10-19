@@ -72,14 +72,21 @@ function importSchema() {
 </template>
 
 <style scoped>
+section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .schema-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
 }
 
 .schema-form textarea {
   box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   padding: 0.75rem;
   border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
@@ -92,6 +99,7 @@ function importSchema() {
 
 .schema-form button {
   justify-self: start;
+  max-width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
@@ -104,7 +112,28 @@ function importSchema() {
   cursor: not-allowed;
 }
 
+.schema-form textarea:focus-visible,
+.schema-form button:focus-visible {
+  outline: 2px solid var(--focus-ring-accent);
+  outline-offset: 2px;
+}
+
 #schema-error {
   color: var(--text-schema-error);
+}
+
+@media (width < 768px) {
+  section {
+    padding-bottom: 1rem;
+  }
+
+  .schema-form textarea {
+    font-size: 1rem;
+  }
+
+  .schema-form button,
+  :deep(.help-toggle) {
+    min-height: 44px;
+  }
 }
 </style>

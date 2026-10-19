@@ -54,6 +54,8 @@ watch(
 
 <style scoped>
 .query-display {
+  box-sizing: border-box;
+  max-width: 100%;
   max-height: 24rem;
   min-width: 0;
   padding: 0.75rem;

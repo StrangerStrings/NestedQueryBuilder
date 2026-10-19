@@ -103,6 +103,7 @@ const emit = defineEmits<{
     <button
       type="button"
       class="condition-content"
+      :data-edit-condition-id="editable ? condition.id : undefined"
       :disabled="!editable"
       :aria-invalid="isInvalid"
       :aria-describedby="isInvalid ? `${condition.id}-error` : undefined"
@@ -284,5 +285,53 @@ const emit = defineEmits<{
 
 .condition-operator {
   letter-spacing: 0.08em;
+}
+
+@media (width < 768px) {
+  .query-condition {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.5rem;
+    border-radius: 16px;
+  }
+
+  .condition-content {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    min-height: 44px;
+    gap: 0.25rem 0.5rem;
+  }
+
+  .condition-content > span {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .condition-drag-handle,
+  .condition-delete {
+    grid-row: 2;
+    width: 44px;
+    height: 44px;
+  }
+
+  .condition-drag-handle {
+    grid-column: 1;
+  }
+
+  .condition-warning {
+    grid-row: 2;
+    grid-column: 2;
+    justify-self: center;
+  }
+
+  .condition-delete {
+    grid-column: 3;
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 </style>

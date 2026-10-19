@@ -90,4 +90,15 @@ function toggleOperatorLabels() {
   outline: 2px solid var(--focus-ring-accent);
   outline-offset: 3px;
 }
+
+@media (width < 768px) {
+  .builder-controls {
+    flex-wrap: wrap;
+  }
+
+  .builder-control {
+    width: 44px;
+    height: 44px;
+  }
+}
 </style>

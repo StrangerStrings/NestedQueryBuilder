@@ -76,8 +76,14 @@ function importFilter() {
 </template>
 
 <style scoped>
+section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .sql-import {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
   margin-bottom: 1.5rem;
   color: var(--text-muted);
@@ -86,6 +92,7 @@ function importFilter() {
 
 .sql-import textarea {
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   padding: 0.65rem;
   border: 1px solid var(--border-control);
@@ -98,6 +105,7 @@ function importFilter() {
 
 .sql-import button {
   justify-self: start;
+  max-width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-panel);
   border-radius: 0.375rem;
@@ -108,6 +116,12 @@ function importFilter() {
 
 .sql-import button:disabled {
   cursor: not-allowed;
+}
+
+.sql-import textarea:focus-visible,
+.sql-import button:focus-visible {
+  outline: 2px solid var(--focus-ring-accent);
+  outline-offset: 2px;
 }
 
 .import-error {
@@ -125,5 +139,20 @@ function importFilter() {
 .import-error code {
   display: block;
   margin-top: 0.25rem;
+}
+
+@media (width < 768px) {
+  section {
+    padding-bottom: 1rem;
+  }
+
+  .sql-import textarea {
+    font-size: 1rem;
+  }
+
+  .sql-import button,
+  :deep(.help-toggle) {
+    min-height: 44px;
+  }
 }
 </style>

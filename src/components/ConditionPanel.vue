@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { formatDialect, postgresql } from 'sql-formatter'
 import ConditionFieldInput from './ConditionFieldInput.vue'
 import ConditionOperatorInput from './ConditionOperatorInput.vue'
@@ -15,10 +15,111 @@ const queryStore = useQueryStore()
 const settingsStore = useSettingsStore()
 const rawConditionId = useId()
 const editorError = ref<string | null>(null)
+const panel = ref<HTMLElement | null>(null)
+const backButton = ref<HTMLButtonElement | null>(null)
+const editorButton = ref<HTMLButtonElement | null>(null)
+const viewportHeight = ref('100dvh')
+const viewportTop = ref('0px')
 
 const props = defineProps<{
   condition: QueryCondition
+  mobile?: boolean
 }>()
+
+// Size the overlay to the visible viewport when the keyboard or browser chrome reduces its space.
+function updateViewport() {
+  viewportHeight.value = `${window.visualViewport?.height ?? window.innerHeight}px`
+  viewportTop.value = `${window.visualViewport?.offsetTop ?? 0}px`
+}
+
+// Resolve the current tab stops each time so expanded parameters and other dynamic controls participate.
+function availableControls() {
+  return Array.from(
+    panel.value?.querySelectorAll<HTMLElement>(
+      'button, a[href], input, select, textarea, summary, [tabindex]',
+    ) ?? [],
+  ).filter(
+    // Exclude disabled, hidden and collapsed controls from the focus loop.
+    (control) =>
+      control.tabIndex >= 0 &&
+      !control.matches(':disabled') &&
+      !control.closest('[inert]') &&
+      control.getClientRects().length > 0 &&
+      window.getComputedStyle(control).visibility !== 'hidden',
+  )
+}
+
+// Keep forward and backward tabbing inside the visible editor without handling Escape.
+function trapTab(event: KeyboardEvent) {
+  if (!props.mobile || event.key !== 'Tab' || event.defaultPrevented) return
+  const controls = availableControls()
+  const first = controls[0]
+  const last = controls[controls.length - 1]
+  const active = document.activeElement
+  if (
+    !controls.includes(active as HTMLElement) ||
+    (event.shiftKey ? active === first : active === last)
+  ) {
+    event.preventDefault()
+    const target = (event.shiftKey ? last : first) ?? panel.value
+    target?.focus()
+  }
+}
+
+// Contain programmatic focus as well as keyboard focus while the covered UI is inert.
+function containFocus(event: FocusEvent) {
+  if (props.mobile && event.target instanceof Node && !panel.value?.contains(event.target)) {
+    backButton.value?.focus({ preventScroll: true })
+  }
+}
+
+// Remove mobile-only listeners on dismissal, desktop transition and unmount.
+function releaseMobileListeners() {
+  document.removeEventListener('keydown', trapTab)
+  document.removeEventListener('focusin', containFocus)
+  window.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('scroll', updateViewport)
+}
+
+// Change presentation without moving focus out of an existing input or recreating its browser draft.
+async function updateMobileMode(mobile: boolean | undefined) {
+  const focusOnBack = document.activeElement === backButton.value
+  releaseMobileListeners()
+  if (mobile) {
+    updateViewport()
+    document.addEventListener('keydown', trapTab)
+    document.addEventListener('focusin', containFocus)
+    window.addEventListener('resize', updateViewport)
+    window.visualViewport?.addEventListener('resize', updateViewport)
+    window.visualViewport?.addEventListener('scroll', updateViewport)
+  }
+  await nextTick()
+  if (!panel.value || props.mobile !== mobile) return
+  if (mobile) {
+    const active = document.activeElement
+    if (
+      !panel.value.contains(active) ||
+      (active instanceof HTMLElement && active.getClientRects().length === 0)
+    ) {
+      backButton.value?.focus({ preventScroll: true })
+    }
+  } else if (focusOnBack) {
+    editorButton.value?.focus({ preventScroll: true })
+  }
+}
+
+// Apply mobile focus handling after the panel and its controls have rendered.
+watch(() => props.mobile, updateMobileMode, { immediate: true, flush: 'post' })
+onBeforeUnmount(releaseMobileListeners)
+
+// Let the focused input finish its existing blur commit before the parent removes the editor.
+async function requestClose() {
+  const active = document.activeElement
+  if (active instanceof HTMLElement && panel.value?.contains(active)) active.blur()
+  await nextTick()
+  emit('close')
+}
 
 // Describe condition output using adapter metadata, retaining SQL wording for existing modes.
 const outputLabel = computed(() => queryStore.adapter.presentation?.outputLabel ?? 'SQL')
@@ -129,13 +230,31 @@ const emit = defineEmits<{
 
 <template>
   <aside
+    ref="panel"
     class="condition-panel"
-    :style="{ borderColor: borderColour, backgroundColor: backgroundColour }"
-    aria-label="Condition details"
+    :style="{
+      borderColor: borderColour,
+      backgroundColor: mobile ? 'var(--surface-panel)' : backgroundColour,
+      '--editor-viewport-height': viewportHeight,
+      '--editor-viewport-top': viewportTop,
+    }"
+    :role="mobile ? 'dialog' : undefined"
+    :aria-modal="mobile ? true : undefined"
+    :aria-label="mobile ? 'Condition editor' : 'Condition details'"
+    :tabindex="mobile ? -1 : 0"
   >
+    <button ref="backButton" type="button" class="panel-back" @click="requestClose">
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+      Back to builder
+    </button>
     <div class="panel-header">
       <div class="editing-mode" role="group" aria-label="Condition editing mode">
-        <button type="button" :aria-pressed="editingMode === 'editor'" @click="openVisualEditor">
+        <button
+          ref="editorButton"
+          type="button"
+          :aria-pressed="editingMode === 'editor'"
+          @click="openVisualEditor"
+        >
           Editor
         </button>
         <button
@@ -151,7 +270,7 @@ const emit = defineEmits<{
         class="panel-close"
         type="button"
         aria-label="Close condition details"
-        @click="emit('close')"
+        @click="requestClose"
       >
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
@@ -243,6 +362,10 @@ const emit = defineEmits<{
   gap: 0.5rem;
 }
 
+.panel-back {
+  display: none;
+}
+
 .editing-mode {
   display: flex;
   flex: 1;
@@ -297,7 +420,8 @@ const emit = defineEmits<{
   cursor: pointer;
 }
 
-.panel-close:focus-visible {
+.panel-close:focus-visible,
+.panel-back:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -376,5 +500,53 @@ button .material-symbols-outlined {
 .condition-sql :deep(pre) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+@media (width < 768px) {
+  .condition-panel {
+    position: fixed;
+    z-index: 3;
+    top: var(--editor-viewport-top);
+    left: 0;
+    width: 100%;
+    height: var(--editor-viewport-height);
+    max-height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    border-radius: 0;
+  }
+
+  .panel-back {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    width: 100%;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border: 1px solid var(--border-control);
+    border-radius: 4px;
+    background: var(--surface-panel);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .panel-close {
+    display: none;
+  }
+
+  .condition-panel :deep(button),
+  .condition-panel :deep(input),
+  .condition-panel :deep(select),
+  .condition-panel :deep(summary) {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
 }
 </style>
