@@ -2,13 +2,12 @@
 import { computed, ref, watch } from 'vue'
 
 import { useQueryStore } from '../stores/queryStore'
-import { useSettingsStore } from '../stores/settingsStore'
 import type { QueryCondition, QueryGroup as QueryGroupModel } from '../types/query'
+import BuilderSettings from './BuilderSettings.vue'
 import ConditionPanel from './ConditionPanel.vue'
 import QueryGroup from './QueryGroup.vue'
 
 const queryStore = useQueryStore()
-const settingsStore = useSettingsStore()
 const selectedConditionId = ref<string | null>(null)
 
 // Drop selection immediately when the query root is replaced by a switch or import.
@@ -44,21 +43,6 @@ function selectCondition(condition: QueryCondition) {
 function closeConditionPanel() {
   selectedConditionId.value = null
 }
-
-// Toggle the saved mode flag for future drag-and-drop behaviour.
-function toggleDragAndDropMode() {
-  settingsStore.dragAndDropMode = !settingsStore.dragAndDropMode
-}
-
-// Switch from the current appearance and persist the chosen light or dark theme.
-function toggleDarkMode() {
-  settingsStore.themePreference = settingsStore.resolvedTheme === 'dark' ? 'light' : 'dark'
-}
-
-// Switch operator text between readable labels and database identifiers.
-function toggleOperatorLabels() {
-  settingsStore.showOperatorLabels = !settingsStore.showOperatorLabels
-}
 </script>
 
 <template>
@@ -81,42 +65,7 @@ function toggleOperatorLabels() {
         @close="closeConditionPanel"
       />
     </div>
-    <div class="builder-controls" role="group" aria-label="Builder display settings">
-      <button
-        type="button"
-        class="builder-control"
-        aria-label="Drag Pan"
-        :aria-pressed="settingsStore.dragAndDropMode"
-        title="Drag Pan"
-        @click="toggleDragAndDropMode"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">drag_pan</span>
-      </button>
-      <button
-        type="button"
-        class="builder-control"
-        aria-label="Dark mode"
-        :aria-pressed="settingsStore.resolvedTheme === 'dark'"
-        :title="
-          settingsStore.resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-        "
-        @click="toggleDarkMode"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">
-          {{ settingsStore.resolvedTheme === 'dark' ? 'dark_mode' : 'light_mode' }}
-        </span>
-      </button>
-      <button
-        type="button"
-        class="builder-control"
-        aria-label="Operator labels"
-        :aria-pressed="settingsStore.showOperatorLabels"
-        :title="settingsStore.showOperatorLabels ? 'Hide operator labels' : 'Show operator labels'"
-        @click="toggleOperatorLabels"
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">label</span>
-      </button>
-    </div>
+    <BuilderSettings class="builder-settings" />
   </section>
 </template>
 
@@ -162,39 +111,10 @@ function toggleOperatorLabels() {
   padding-left: 1.5rem;
 }
 
-.builder-controls {
+.builder-settings {
   position: fixed;
   bottom: 1rem;
   left: 1.5rem;
   z-index: 1;
-  display: flex;
-  gap: 0.5rem;
-}
-
-.builder-control {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  padding: 0;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  background: var(--surface-button);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.builder-control[aria-pressed='false'] {
-  color: var(--text-inactive);
-}
-
-.builder-control[aria-pressed='true'] {
-  color: var(--accent-primary);
-}
-
-.builder-control:focus-visible {
-  outline: 2px solid var(--focus-ring-accent);
-  outline-offset: 3px;
 }
 </style>
