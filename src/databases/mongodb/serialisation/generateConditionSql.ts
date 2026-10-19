@@ -2,7 +2,7 @@ import type { SqlResult } from '../../../types/databaseAdapter'
 import type { QueryCondition } from '../../../types/query'
 import { resolveMongoDBOperator, validateMongoDBCondition } from '../validation'
 
-// Serialize a Raw JSON filter or validate and serialize a visual MongoDB condition.
+// Serialize Raw JSON or validated native predicates, including paired regex options.
 export function generateMongoDBConditionSql(condition: QueryCondition): SqlResult {
   let nodeId: string | undefined
   try {
@@ -46,6 +46,10 @@ export function generateMongoDBConditionSql(condition: QueryCondition): SqlResul
       case 'size':
         nativeOperator = `$${operator.id}`
         break
+      case 'type':
+      case 'type_list':
+        nativeOperator = '$type'
+        break
       case 'exists':
       case 'missing':
         nativeOperator = '$exists'
@@ -60,7 +64,13 @@ export function generateMongoDBConditionSql(condition: QueryCondition): SqlResul
         throw new Error('Unsupported MongoDB condition operator.')
     }
 
-    const document = { [condition.field.name]: { [nativeOperator]: operand } }
+    const predicate: Record<string, unknown> = { [nativeOperator]: operand }
+    const options = condition.parameters?.find(
+      // Regex flags form one native parameter alongside the unchanged pattern string.
+      (parameter) => parameter.name === '$options',
+    )
+    if (options?.name === '$options' && options.value) predicate.$options = options.value
+    const document = { [condition.field.name]: predicate }
     return { success: true, sql: JSON.stringify(document, null, 2) }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Invalid MongoDB condition.', nodeId }

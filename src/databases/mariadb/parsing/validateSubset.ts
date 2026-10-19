@@ -8,8 +8,12 @@ import { mariadbFieldModifiers } from '../modifiers'
 class MariadbSubsetReader {
   private index = 0
 
-  // Keep the original grammar-validated tokens local to one compatibility assessment.
-  constructor(private tokens: SqlFilterToken[], private schemaArithmetic = false) {}
+  // Keep original tokens and optional schema collations local to one compatibility assessment.
+  constructor(
+    private tokens: SqlFilterToken[],
+    private schemaArithmetic = false,
+    private schemaCollations?: ReadonlySet<string>,
+  ) {}
 
   // Inspect spelling without changing the source or decoding identifier keywords.
   private peek(): string { return this.tokens[this.index]?.text ?? '' }
@@ -61,7 +65,7 @@ class MariadbSubsetReader {
     throw new Error('Only quoted strings and UTF-8 hex text are supported in MariaDB filters.')
   }
 
-  // Read the established scalar subset, retaining casts and nested compatible modifiers as raw SQL.
+  // Read nested scalar operands using schema collations only when explicitly supplied.
   private scalar(): string | null {
     const token = this.peek()
     const keyword = token.toUpperCase()
@@ -111,8 +115,8 @@ class MariadbSubsetReader {
     }
     if (this.consume('COLLATE')) {
       const collation = this.take().toLowerCase()
-      // Limit opaque collation clauses to names documented for MariaDB 11.4's utf8mb4 charset.
-      if (!['utf8mb4_bin', 'utf8mb4_general_ci'].includes(collation)) {
+      // Keep filter/Raw acceptance unchanged when no schema allowlist is supplied.
+      if (!(this.schemaCollations ? this.schemaCollations.has(collation) : ['utf8mb4_bin', 'utf8mb4_general_ci'].includes(collation))) {
         throw new Error(`MariaDB 11.4 compatibility is not established for collation ${collation}.`)
       }
       text = null
@@ -132,7 +136,7 @@ class MariadbSubsetReader {
     return text
   }
 
-  // Validate only existing catalogue predicates; lists may remain raw when conversion would be lossy.
+  // Validate catalogue predicates and MariaDB regex aliases without changing the original SQL.
   private comparison(): void {
     this.operand()
     let operator = this.take().toUpperCase()
@@ -144,6 +148,8 @@ class MariadbSubsetReader {
     } else if (operator === 'NOT') {
       operator += ` ${this.take().toUpperCase()}`
     }
+    if (operator === 'RLIKE') operator = 'REGEXP'
+    if (operator === 'NOT RLIKE') operator = 'NOT REGEXP'
     if (!mariadbOperators.some((candidate) => candidate.id === operator)) {
       throw new Error(`MariaDB filter import does not support operator ${operator}.`)
     }
@@ -220,10 +226,10 @@ export function mariadbSubsetError(expression: SqlFilterExpression): string | nu
   }
 }
 
-// Reuse the established operand grammar for schema defaults, generated values, and CHECK predicates.
-export function mariadbSchemaExpressionError(tokens: SqlFilterToken[], predicate: boolean): string | null {
+// Reuse the operand grammar with schema collations for defaults, generated values, and CHECK predicates.
+export function mariadbSchemaExpressionError(tokens: SqlFilterToken[], predicate: boolean, collations: ReadonlySet<string>): string | null {
   try {
-    const reader = new MariadbSubsetReader(tokens, true)
+    const reader = new MariadbSubsetReader(tokens, true, collations)
     if (predicate) reader.validate()
     else reader.validateScalar()
     return null

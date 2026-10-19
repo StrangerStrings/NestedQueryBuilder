@@ -75,7 +75,19 @@ function validatePrimitive(dataType: ValueDataType, value: unknown): void {
   )
 }
 
-// Require catalogue metadata and complete homogeneous primitive operands.
+// Accept exact native BSON aliases and numeric codes without converting strings to numbers.
+function validateBsonType(value: unknown): void {
+  if (typeof value === 'string' && [
+    'double', 'string', 'object', 'array', 'binData', 'undefined', 'objectId', 'bool',
+    'date', 'null', 'regex', 'dbPointer', 'javascript', 'symbol', 'javascriptWithScope',
+    'int', 'timestamp', 'long', 'decimal', 'minKey', 'maxKey', 'number',
+  ].includes(value)) return
+  if (typeof value === 'number' && Number.isInteger(value) &&
+    (value === -1 || (value >= 1 && value <= 19) || value === 127)) return
+  throw new Error('MongoDB $type requires an exact BSON type alias or numeric code (-1, 1–19, or 127); numeric strings are not codes.')
+}
+
+// Require catalogue metadata and complete homogeneous operands, including native BSON types.
 export function validateMongoDBValue(operatorId: unknown, operand: unknown): void {
   const operator: DatabaseOperator = resolveMongoDBOperator(operatorId)
   const value = requireMembers(
@@ -110,6 +122,7 @@ export function validateMongoDBValue(operatorId: unknown, operand: unknown): voi
   const dataType = value.dataType as ValueDataType
   if (value.dataShape === 'single') {
     validatePrimitive(dataType, value.value)
+    if (operator.id === 'type') validateBsonType(value.value)
     if (
       operator.id === 'size' &&
       (typeof value.value !== 'number' || !Number.isSafeInteger(value.value) || value.value < 0)
@@ -124,10 +137,37 @@ export function validateMongoDBValue(operatorId: unknown, operand: unknown): voi
   for (let index = 0; index < values.length; index += 1) {
     if (!hasOwn(values, index)) throw new Error('MongoDB lists cannot contain missing elements.')
     validatePrimitive(dataType, values[index])
+    if (operator.id === 'type_list') validateBsonType(values[index])
   }
 }
 
-// Reject Raw SQL and malformed editor conditions before MongoDB query conversion.
+// Accept native regex option strings without compiling or rewriting pattern strings.
+export function validateMongoDBRegexOptions(value: unknown): asserts value is string {
+  if (typeof value !== 'string' || /[^imsxu]/.test(value)) {
+    throw new Error('MongoDB $options requires a string containing only i, m, s, x or u flags.')
+  }
+}
+
+// Require one native options row, restricted to visual regex conditions.
+function validateMongoDBParameters(operatorId: unknown, parameters: unknown): void {
+  if (parameters === undefined) return
+  if (!Array.isArray(parameters)) throw new Error('MongoDB parameters must be a row array.')
+  if (parameters.length === 0) return
+  if (operatorId !== 'regex' || parameters.length !== 1) {
+    throw new Error('Only MongoDB regex conditions accept one $options parameter.')
+  }
+  const parameter = requireMembers(
+    parameters[0],
+    ['name', 'value'],
+    'A MongoDB regex parameter requires a name and value.',
+  )
+  if (parameter.name !== '$options' || Object.keys(parameter).length !== 2) {
+    throw new Error('MongoDB regex conditions support only the native $options parameter.')
+  }
+  validateMongoDBRegexOptions(parameter.value)
+}
+
+// Reject Raw SQL and malformed editor conditions, including incompatible regex parameters.
 export function validateMongoDBCondition(value: unknown): void {
   const condition = requireMembers(
     value,
@@ -139,6 +179,7 @@ export function validateMongoDBCondition(value: unknown): void {
   if ('rawSql' in condition) throw new Error('Raw SQL is unsupported in MongoDB conditions.')
   validateMongoDBField(condition.field)
   validateMongoDBValue(condition.operatorId, condition.value)
+  validateMongoDBParameters(condition.operatorId, condition.parameters)
 }
 
 // Reject consumed source numbers that overflow, underflow to zero or have unsafe integer values.

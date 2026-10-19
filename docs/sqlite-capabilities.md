@@ -22,6 +22,7 @@ The saved library inspection found a package-local ESM runtime graph without Nod
 | `IN`, `NOT IN` | Nonempty homogeneous list | The same types |
 | `BETWEEN`, `NOT BETWEEN` | Exactly two homogeneous endpoints | The same types |
 | `IS NULL`, `IS NOT NULL` | No value (`hasValue: false`) | None |
+| `IS TRUE`, `IS FALSE`, `IS NOT TRUE`, `IS NOT FALSE` | No value (`hasValue: false`) | None |
 | `LIKE`, `NOT LIKE`, `GLOB`, `NOT GLOB` | One pattern | Text or field reference |
 
 Literal SQL `NULL` and duration are outside visual values. Runtime validation rejects malformed nodes or value shapes, missing/sparse array items, heterogeneous lists/ranges, incomplete ranges, unsupported operators/modifiers, nonfinite numbers, and invalid primitive value types. It does not coerce editor values into valid SQL.
@@ -32,13 +33,15 @@ Native expression precedence drives import: `NOT` binds above `AND`, which binds
 
 Comparisons follow SQLite affinity and applicable collation rules. `IS` and `IS NOT` are null-safe and do not yield NULL. Ordinary comparisons and negative predicates retain SQL NULL behavior: a NULL-dependent unknown result does not match a WHERE filter. `NOT IN` with a NULL-containing Raw list can yield unknown for an otherwise unmatched operand. `BETWEEN` is inclusive; `NOT BETWEEN` excludes its endpoints. No implicit null-check branches, forced collations, field rewrites or added wildcards are generated.
 
+Native truth predicates use SQLite numeric conversion: nonzero is true and zero is false. `IS TRUE` therefore matches values such as 2, rather than only 1. NULL matches neither `IS TRUE` nor `IS FALSE`, and matches both `IS NOT TRUE` and `IS NOT FALSE`. These predicates generate their native spelling without an operand input.
+
 ### Identifiers and literals
 
 [Identifier generation](../src/databases/sqlite/identifiers.ts) interprets the model's dots as qualification separators. A visual field has one to three segments: `column`, `table.column`, or `database.table.column`. Every segment is emitted in double quotes with embedded double quotes doubled, identically on the left and in right-hand field values, including list/range items. For example, model field `main.users.na"me` emits `"main"."users"."na""me"`.
 
 Empty or wildcard (`*`) segments, NUL, invalid surrogate sequences, literal dots within decoded segments, and significant surrounding whitespace that the model cannot preserve are rejected. There is no MySQL length limit or BMP-only restriction; valid supplementary Unicode is retained. Import admits strict double-quoted, backtick and bracket identifier forms. Double quotes and backticks use doubled closing delimiters; bracket quoting ends at the first closing bracket. Single-quoted identifier fallback and double-quoted-string fallback are excluded. Otherwise-supported quoted filter references such as `"a.b"` or `" padded "` remain Raw; unrepresentable schema suggestion names reject the entire schema.
 
-[Literal generation](../src/databases/sqlite/serialisation/conditionLiteral.ts) doubles apostrophes in single-quoted text, preserves backslashes and valid Unicode, and rejects NUL or unpaired surrogates. It adds no charset introducer, escape-string prefix or BLOB replacement. Finite primitive JavaScript numbers use `String(value)` without locale formatting. Boolean editor values generate **`1` / `0`**. A visual boolean comparison can therefore emit `"active" IS 1`; imported `active IS TRUE` remains Raw because it is a truth test and bare TRUE/FALSE can participate in name resolution. Neither truth tests nor unquoted TRUE/FALSE expressions are rewritten into numeric booleans. Ordinary imported strings remain text, including date-looking strings.
+[Literal generation](../src/databases/sqlite/serialisation/conditionLiteral.ts) doubles apostrophes in single-quoted text, preserves backslashes and valid Unicode, and rejects NUL or unpaired surrogates. It adds no charset introducer, escape-string prefix or BLOB replacement. Finite primitive JavaScript numbers use `String(value)` without locale formatting. Boolean editor values generate **`1` / `0`**. A visual boolean comparison can therefore emit `"active" IS 1`; imported `active IS 1` and `active IS 0` remain ordinary comparisons. Imported `active IS TRUE` becomes the native no-value truth predicate. Conversion recognizes intact unquoted TRUE/FALSE operands on the right of IS/IS NOT, retaining native AST distinctions; quoted or qualified references named TRUE/FALSE remain field comparisons. Bare TRUE/FALSE elsewhere stay Raw to preserve name resolution. Neither truth tests nor unquoted TRUE/FALSE expressions are rewritten into numeric booleans. Ordinary imported strings remain text, including date-looking strings.
 
 Temporal values reuse [the existing validator](../src/utils/temporalValue.ts) and emit exact single-quoted `YYYY-MM-DD`, `HH:mm:ss`, and `YYYY-MM-DDTHH:mm:ss` strings. Dates require four decimal year digits and a valid month/day, including leap-year rules; times require hours 00–23 and minutes/seconds 00–59. These are local values at seconds precision, without fractional seconds, timezone conversion, casts or field transformations. Direct comparisons assume matching stored text, including the datetime `T`; differently formatted timestamps are not converted automatically.
 
@@ -48,17 +51,18 @@ Visual `LIKE` and `NOT LIKE` use plain SQLite LIKE. `%` matches zero or more cha
 
 Ordinary `GLOB` is case-sensitive across the whole value: `*` matches zero or more characters, `?` one character, brackets provide classes/ranges, and `[^...]` negates a class. GLOB adds no SQL ESCAPE clause; runtime overrides can affect behavior.
 
-[The eight visual modifiers](../src/databases/sqlite/modifiers.ts) each wrap one field:
+[The nine visual modifiers](../src/databases/sqlite/modifiers.ts) each wrap one field:
 
 | Modifier | Ordinary built-in behavior |
 | --- | --- |
 | `lower`, `upper` | Convert ASCII letter case, without general Unicode case folding |
 | `trim`, `ltrim`, `rtrim` | Remove U+0020 spaces from both, left, or right ends; not all whitespace |
 | `length` | Count Unicode characters in text up to its first NUL; BLOB values count bytes and numeric values use their text representation |
+| `typeof` | Return the storage-type string `null`, `integer`, `real`, `text` or `blob`; `typeof(NULL)` returns the text `'null'`, not SQL NULL |
 | `abs` | Apply SQLite numeric coercion and take the absolute value; nonnumeric text/BLOB yields 0.0 and the minimum signed 64-bit integer overflows |
 | `round` | Apply numeric coercion and round to zero decimal places, returning a floating-point value |
 
-Ordinary built-ins propagate NULL. Input storage types and overridden functions affect results; the editor does not evaluate them or infer their result types. Optional math functions and modifiers such as `initcap`, `reverse`, `floor`, `ceil`, `trunc` and `sqrt` are excluded.
+The ordinary built-in modifiers other than `typeof` propagate NULL. Input storage types and overridden functions affect results; the editor does not evaluate them or infer their result types. `typeof(value) = 'integer'` imports as a single-field modifier comparison and exports with the native `TYPEOF` call. Optional math functions and modifiers such as `initcap`, `reverse`, `floor`, `ceil`, `trunc` and `sqrt` are excluded.
 
 ## Filter boundaries, Raw policy and fidelity
 
@@ -77,13 +81,37 @@ Raw preserves the following otherwise-supported forms without discarding their s
 - Nested allowlisted modifiers, modified right-hand fields, and two-argument `trim`, `ltrim`, `rtrim` or `round`.
 - `LIKE` / `NOT LIKE` with a direct or scalar-parenthesized single-quoted constant ESCAPE containing exactly one Unicode scalar character.
 - ASCII-compared built-in `BINARY`, `NOCASE` and `RTRIM` collations.
-- Unquoted TRUE/FALSE, truth tests such as `active IS TRUE` / `active IS NOT FALSE`, comments, and otherwise-supported quoted references with literal dots or significant surrounding whitespace.
+- Unquoted TRUE/FALSE outside a representable truth-test operand, truth tests whose left-hand expression cannot be represented visually, comments, and otherwise-supported quoted references with literal dots or significant surrounding whitespace.
 
 The practical additional scalar subset admits one-expression parentheses; unary `+`, `-`, `~` and `NOT`; arithmetic `+`, `-`, `*`, `/`, `%`; concatenation `||`; bitwise `&`, `|`, `<<`, `>>`; scalar comparisons and logical predicates; inclusive BETWEEN in either polarity; IN lists in either polarity; LIKE/GLOB in either polarity; postfix null-check aliases (`ISNULL`, `NOTNULL`, `NOT NULL`); simple and searched `CASE`; blobs such as `X'00FF'`; and `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_TIMESTAMP`. References have one to three strictly interpreted segments. These additional forms require Raw when the visual model cannot retain the whole expression.
 
 Decimal tokens permit digits with an optional fractional part (including `1.`), or a leading decimal point with digits (such as `.5`), optionally followed by an e/E exponent with an optional sign and digits. Unary signs are separate expression nodes. Exact original spellings are checked without rounding or evaluating overflow/underflow during Raw policy validation.
 
-Calls are limited to the same eight unqualified core names, including strictly quoted names denoting those built-ins after dequoting and ASCII comparison. `lower`, `upper`, `length`, `abs` require exactly one argument; `trim`, `ltrim`, `rtrim`, `round` allow one or two. Every argument follows its expression context. The validator does not assume argument storage types or evaluate calls.
+Filter calls admit the nine core names above plus six Raw-only scalar functions and five Raw-only date/time functions. Names must be unqualified; strictly quoted names denoting these built-ins after dequoting and ASCII comparison are also accepted. `lower`, `upper`, `length`, `abs`, `typeof` require exactly one argument; `trim`, `ltrim`, `rtrim`, `round` allow one or two.
+
+| Raw-only filter function | Accepted argument count |
+| --- | --- |
+| `coalesce` | At least 2 |
+| `ifnull`, `nullif`, `instr` | Exactly 2 |
+| `substr` | 2 or 3 |
+| `replace` | Exactly 3 |
+| `date`, `time`, `datetime`, `julianday` | Zero or more: optional time value followed by modifiers |
+| `strftime` | At least 1: format, optional time value, then modifiers |
+
+These six scalar functions, five date/time functions and `typeof` are filter-only; schema DEFAULT/CHECK acceptance retains the original eight-function allowlist. Every argument is recursively validated in the same context, including arguments SQLite could skip at runtime. Wrong arity or any unsupported descendant, such as a binding, subquery or arbitrary call, rejects the complete input. Function decorations remain excluded. The validator does not assume argument storage types or evaluate calls.
+
+The six scalar functions have no visual modifiers or argument controls. For example, `coalesce(a, ifnull(b, '')) = 'x'` remains Raw through import and export with its source preserved. Raw-to-visual conversion explains that Raw mode is required to preserve the function arguments and source; failed conversion retains the existing Raw condition. Nested calls and right-hand scalar calls also use the established Raw preservation path.
+
+The five date/time calls also remain Raw, without visual modifiers or argument controls. Their literal policy is based on the [official SQLite 3.37.0 `src/date.c`](https://raw.githubusercontent.com/sqlite/sqlite/version-3.37.0/src/date.c), rather than the installed parser's newer grammar:
+
+- A time-value argument can be any recursively accepted expression; the editor does not evaluate it or validate its date contents.
+- Literal modifiers (including single-expression parenthesized string literals) accept ASCII-case-insensitive `start of day`, `start of month`, `start of year`, `weekday 0` through `weekday 6`, `unixepoch`, `localtime` and `utc`. Legacy numeric shifts accept singular/plural second, minute, hour, day, month and year units, optional signs, fractional amounts and decimal exponents. Clock shifts accept `HH:MM`, `HH:MM:SS` or `HH:MM:SS.fraction`, with an optional sign (hours 00–24, minutes/seconds 00–59). This checks supported spellings, not whether a particular date/modifier sequence yields a non-NULL result.
+- Literal `strftime` formats (also through scalar parentheses) accept text and only `%d`, `%f`, `%H`, `%j`, `%J`, `%m`, `%M`, `%s`, `%S`, `%w`, `%W`, `%Y` and `%%`. Unknown/newer directives and an unfinished `%` fail with source-aware feedback.
+- Newer literal modifiers such as `auto`, `julianday`, `subsec`, `subsecond`, `floor`, `ceiling`, and extended `±YYYY-MM-DD` date shifts are rejected. `unixepoch()` and `timediff()` calls are unavailable.
+- Dynamic formats and modifiers are allowed whenever their expressions pass the same recursive restrictions. Their contents are not statically evaluated: runtime values may be unsupported by SQLite 3.37, so baseline compatibility is **not guaranteed for dynamic formats/modifiers**. Nested literals used as arguments to another date/time call still receive that call's literal checks.
+- `date()`, `time()`, `datetime()`, `julianday()` and format-only calls such as `strftime('%Y')` use SQLite's native current-time default. Results depend on execution time. Import/export retains the omitted argument without inserting an explicit time value. `strftime()` fails arity validation.
+
+For example, `date(created_at, 'start of month', '+1 month') = '2026-11-01'`, `strftime('%Y', created_at) = '2026'`, `date(created_at, modifier_column) = '2026-11-01'` and `strftime(format_column, created_at) = '2026'` remain Raw and export with their calls, arguments and order preserved. Invalid arity, disallowed literals, decorations or unsupported descendants reject the complete input. The expansion applies only to filter conditions and does not widen schema DEFAULT/CHECK acceptance.
 
 Excluded forms include CAST, row values, variables/bindings, arbitrary or optional-math functions, qualified calls, star calls, DISTINCT/ALL, argument ordering, WITHIN GROUP, FILTER/OVER decorations, aggregates/windows, subqueries, IN-table forms, EXISTS, SELECTs/CTEs, JSON arrows, MATCH/REGEXP/extensions, RAISE, custom collations, nonconstant or multi-character ESCAPE, GLOB ESCAPE, numeric separators, newer DISTINCT FROM spellings, and all unlisted AST forms/operators. Raw is not unrestricted SQL pass-through. NameExpr/KeywordLiteral nodes are excluded from filters, with only the narrowly specified schema DEFAULT exceptions below.
 
@@ -146,6 +174,8 @@ ON CONFLICT actions are limited to `ROLLBACK`, `ABORT`, `FAIL`, `IGNORE`, `REPLA
 
 Hexadecimal DEFAULT values are excluded in every DEFAULT context. Every expression descendant is validated, including unused CASE branches. Parenthesized/signed DEFAULT wrapper spans can include DEFAULT itself; the implementation consumes the actual child expression and syntax tokens. DEFAULT/CHECK validation uses the already-guarded program AST, without reparsing unguarded slices or granting unknown functions acceptance.
 
+Schema DEFAULT/CHECK calls remain limited to `lower`, `upper`, `length`, `abs`, `trim`, `ltrim`, `rtrim` and `round` with their existing arities. Filter-only `typeof`, `coalesce`, `ifnull`, `nullif`, `instr`, `substr` and `replace` support does not expand schema acceptance.
+
 STRICT requires one declared type token denoting `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB` or `ANY`, without parameters or multiword/custom types. STRICT and WITHOUT ROWID may occur separately or together, in either comma-separated order. Repeated or quoted option words, missing commas and unknown suffixes fail; source tokens are checked rather than trusting collapsed AST flags.
 
 Generated columns (including abbreviated AS), CREATE TABLE AS SELECT, virtual tables, views, indexes, triggers, ALTER, PRAGMA, CLI dot commands and other unsupported statements/clauses are excluded. One excluded clause or unrepresentable suggested identifier rejects the entire schema and leaves previous suggestions intact.
@@ -171,7 +201,7 @@ Its source-derived suggestions are `main.users.id`, `main.users.status`, `main.u
 WHERE "main"."users"."status" = 'online' AND "main"."users"."active" IS TRUE
 ```
 
-The status condition may become visual; the truth test stays Raw. Boolean editor output instead uses numeric `1`/`0`, for example `"main"."users"."active" IS 1`.
+Both conditions can become visual; the truth test retains native `IS TRUE` generation. Boolean value-editor output still uses numeric `1`/`0`, for example `"main"."users"."active" IS 1`, which is an ordinary comparison.
 
 Schema acceptance is syntax validation and extraction only. It does not establish database/table existence, FK target resolution/cardinality, stored-value compatibility, argument types, runtime overrides, or all engine constraint rules. For example, a syntactically admitted WITHOUT ROWID table lacking a primary key can still be rejected by SQLite on execution. No engine constraint emulation or SQL execution is provided.
 

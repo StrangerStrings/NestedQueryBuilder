@@ -26,8 +26,8 @@ const operatorLabel = computed(() =>
     : props.condition.operatorId,
 )
 
-// Count every configured Elasticsearch row, including Off and zero values.
-const parameterCount = computed(() => queryStore.database === 'elasticsearch'
+// Count native parameter rows, including disabled flags and zero values.
+const parameterCount = computed(() => queryStore.database === 'elasticsearch' || queryStore.database === 'mongodb'
   ? props.condition.parameters?.length ?? 0
   : 0,
 )

@@ -329,7 +329,7 @@ export const useQueryStore = defineStore('query', () => {
     { immediate: true, flush: 'pre' },
   )
 
-  // Convert operator values and discard incompatible Elasticsearch parameters on a successful change.
+  // Convert operator values and discard parameters incompatible with the selected operator.
   function changeConditionOperator(conditionId: string, operatorId: string): boolean {
     const condition = findConditionById(query.value, conditionId)
     const operator = operators.value.find((candidate) => candidate.id === operatorId)
@@ -341,9 +341,19 @@ export const useQueryStore = defineStore('query', () => {
     Object.assign(condition, { operatorId, value })
     if (database.value === 'elasticsearch' && condition.parameters !== undefined) {
       const supported = getElasticsearchParameterNames(operatorId)
+      // Narrow database-specific names before consulting the Elasticsearch catalogue.
       condition.parameters = condition.parameters.filter((parameter) =>
-        supported.includes(parameter.name),
+        parameter.name !== '$options' && supported.includes(parameter.name),
       )
+    }
+    if (database.value === 'mongodb' && condition.parameters !== undefined) {
+      // Retain native regex options only on a compatible visual condition.
+      condition.parameters = operatorId === 'regex' && condition.rawSql === undefined
+        ? condition.parameters.filter(
+          // Exclude parameter rows belonging to Elasticsearch.
+          (parameter) => parameter.name === '$options',
+        )
+        : []
     }
     return true
   }
@@ -360,7 +370,7 @@ export const useQueryStore = defineStore('query', () => {
     if (value !== undefined) condition.value = value
   }
 
-  // Store supported Raw drafts and filter combined Elasticsearch operator/parameter updates.
+  // Store Raw drafts and keep combined operator/parameter updates database-compatible.
   function updateCondition(
     conditionId: string,
     updates: Partial<
@@ -371,8 +381,10 @@ export const useQueryStore = defineStore('query', () => {
     if (!condition) return
 
     if (updates.rawSql !== undefined) {
-      if (adapter.value.rawCondition || adapter.value.parseRawCondition)
+      if (adapter.value.rawCondition || adapter.value.parseRawCondition) {
         condition.rawSql = updates.rawSql
+        if (database.value === 'mongodb') delete condition.parameters
+      }
       return
     }
 
@@ -390,13 +402,26 @@ export const useQueryStore = defineStore('query', () => {
 
     if (updates.field !== undefined) condition.field = updates.field
     if (database.value === 'elasticsearch' && 'parameters' in updates) {
-      condition.parameters = updates.parameters
+      condition.parameters = updates.parameters?.filter(
+        // Keep MongoDB regex state outside Elasticsearch conditions.
+        (parameter) => parameter.name !== '$options',
+      )
       if (updates.operatorId !== undefined && condition.parameters !== undefined) {
         const supported = getElasticsearchParameterNames(condition.operatorId)
+        // Exclude MongoDB options from combined Elasticsearch operator updates.
         condition.parameters = condition.parameters.filter((parameter) =>
-          supported.includes(parameter.name),
+          parameter.name !== '$options' && supported.includes(parameter.name),
         )
       }
+    }
+    if (database.value === 'mongodb' && 'parameters' in updates) {
+      // Never attach regex state to another operator or a Raw condition.
+      condition.parameters = condition.operatorId === 'regex' && condition.rawSql === undefined
+        ? updates.parameters?.filter(
+          // Store only the single native MongoDB parameter type.
+          (parameter) => parameter.name === '$options',
+        )
+        : undefined
     }
   }
 

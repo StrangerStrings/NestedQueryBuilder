@@ -79,13 +79,25 @@ export const elasticsearchOperators = [
   {
     id: 'match' as const,
     label: 'analyzed match',
-    description: 'Analyzes the text and matches the resulting terms. Optional parameters select Any or All words and allow fuzzy matching.',
+    description: 'Analyzes the text and matches the resulting terms. Optional parameters select Any or All words, allow fuzzy matching, and set Minimum words matched for analyzed terms with Any words. All words still requires every term.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
     id: 'match_phrase' as const,
     label: 'analyzed phrase',
     description: 'Analyzes the text and matches the resulting phrase. Optional slop allows gaps or changes in word position.',
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
+  },
+  {
+    id: 'match_phrase_prefix' as const,
+    label: 'analyzed phrase prefix',
+    description: 'Analyzes the text and treats the final term as a prefix, preserving phrase order by default.',
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
+  },
+  {
+    id: 'match_bool_prefix' as const,
+    label: 'analyzed boolean prefix',
+    description: 'Analyzes the text and treats the final term as a prefix. Default Boolean behavior requires neither phrase order nor every preceding term.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {

@@ -26,6 +26,14 @@ const functionMaxArgs = new Map<string, number>([
   ['lower', 1], ['upper', 1], ['length', 1], ['abs', 1],
   ['trim', 2], ['ltrim', 2], ['rtrim', 2], ['round', 2],
 ])
+const filterFunctionArgs = new Map<string, readonly [number, number]>([
+  ['typeof', [1, 1]], ['coalesce', [2, Infinity]],
+  ['ifnull', [2, 2]], ['nullif', [2, 2]], ['instr', [2, 2]],
+  ['substr', [2, 3]], ['replace', [3, 3]],
+  ['date', [0, Infinity]], ['time', [0, Infinity]],
+  ['datetime', [0, Infinity]], ['julianday', [0, Infinity]], ['strftime', [1, Infinity]],
+])
+const dateTimeFunctions = new Set(['date', 'time', 'datetime', 'julianday', 'strftime'])
 const collations = new Set(['binary', 'nocase', 'rtrim'])
 
 // Compare built-in names using SQLite's ASCII case rules without changing preserved source.
@@ -172,23 +180,68 @@ function validateChildren(prepared: SqlitePreparedSource, children: readonly Exp
   return null
 }
 
-// Permit only the eight unqualified core calls, their approved arities, and undecorated arguments.
+// Recognize legacy modifier spellings from SQLite 3.37's src/date.c, without evaluating dates.
+function isLegacyDateModifier(value: string): boolean {
+  const modifier = asciiLower(value)
+  if (['start of day', 'start of month', 'start of year', 'unixepoch', 'localtime', 'utc'].includes(modifier)) return true
+  if (/^weekday [0-6]$(?![\s\S])/.test(modifier)) return true
+  if (/^[+-]?(?:[01][0-9]|2[0-4]):[0-5][0-9](?::[0-5][0-9](?:\.[0-9]+)?)?$(?![\s\S])/.test(modifier)) return true
+  return !modifier.startsWith('.') &&
+    /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:e[+-]?[0-9]+)?[ \t\n\r\f\v]+(?:seconds?|minutes?|hours?|days?|months?|years?)$(?![\s\S])/.test(modifier)
+}
+
+// Check direct or parenthesized format/modifier literals; dynamic expressions retain recursive policy.
+function validateDateTimeArguments(prepared: SqlitePreparedSource, name: string, args: readonly Expr[]): SqliteParseFailure | null {
+  const timeIndex = name === 'strftime' ? 1 : 0
+  for (let index = 0; index < args.length; index++) {
+    let argument = args[index]
+    if (!argument || index === timeIndex) continue
+    while (argument.type === 'ParenthesizedExpr' && argument.exprs.length === 1 && argument.exprs[0]) {
+      argument = argument.exprs[0]
+    }
+    if (argument.type !== 'StringLiteral') continue
+    if (name === 'strftime' && index === 0) {
+      if (!/^(?:[^%]|%[dfHjJmMsSwWY%])*$(?![\s\S])/.test(argument.value)) {
+        return policyFailure(prepared, 'unsupported-value', 'SQLite 3.37 strftime formats support only %d, %f, %H, %j, %J, %m, %M, %s, %S, %w, %W, %Y, and %%.', argument.span)
+      }
+    } else if (!isLegacyDateModifier(argument.value)) {
+      return policyFailure(prepared, 'unsupported-value', 'SQLite 3.37 date/time modifiers support legacy unit or clock shifts, start of day/month/year, weekday 0–6, unixepoch, localtime, and utc.', argument.span)
+    }
+  }
+  return null
+}
+
+// Validate context-specific calls recursively, then check baseline date/time literal arguments.
 function validateFunction(prepared: SqlitePreparedSource, node: Extract<Expr, { type: 'FunctionCallExpr' }>, context: ExpressionContext): SqliteParseFailure | null {
   const nameError = validateSqliteIdentifier(prepared, node.name.span, node.name.name, 'unsupported-expression')
   if (nameError) return nameError
   const name = asciiLower(node.name.name)
-  const maxArgs = functionMaxArgs.get(name)
+  const filterArgs = context === 'filter' ? filterFunctionArgs.get(name) : undefined
+  const minArgs = filterArgs?.[0] ?? 1
+  const maxArgs = filterArgs?.[1] ?? functionMaxArgs.get(name)
   if (maxArgs === undefined) {
-    return policyFailure(prepared, 'unsupported-expression', 'Only lower, upper, length, abs, trim, ltrim, rtrim, and round calls are supported.', node.name.span)
+    const supported = context === 'filter'
+      ? 'lower, upper, length, abs, trim, ltrim, rtrim, round, typeof, coalesce, ifnull, nullif, instr, substr, replace, date, time, datetime, julianday, and strftime'
+      : 'lower, upper, length, abs, trim, ltrim, rtrim, and round'
+    return policyFailure(prepared, 'unsupported-expression', `Only ${supported} calls are supported.`, node.name.span)
   }
   if (node.distinctness !== undefined || node.orderBy !== undefined || node.filterOver !== undefined) {
     return policyFailure(prepared, 'unsupported-expression', 'DISTINCT, ALL, argument ordering, WITHIN GROUP, FILTER, and OVER decorations are outside the supported SQLite function subset.', node.span)
   }
   const args = node.args ?? []
-  if (args.length < 1 || args.length > maxArgs) {
-    return policyFailure(prepared, 'unsupported-expression', `${name} requires ${maxArgs === 1 ? 'exactly one argument' : 'one or two arguments'}.`, node.span)
+  if (args.length < minArgs || args.length > maxArgs) {
+    const arity = maxArgs === Infinity
+      ? `at least ${minArgs} arguments`
+      : minArgs === maxArgs
+        ? `exactly ${minArgs} ${minArgs === 1 ? 'argument' : 'arguments'}`
+        : `${minArgs} or ${maxArgs} arguments`
+    return policyFailure(prepared, 'unsupported-expression', `${name} requires ${arity}.`, node.span)
   }
-  return validateChildren(prepared, args, context)
+  const argumentError = validateChildren(prepared, args, context)
+  if (argumentError) return argumentError
+  return context === 'filter' && dateTimeFunctions.has(name)
+    ? validateDateTimeArguments(prepared, name, args)
+    : null
 }
 
 // Preserve built-in collation clauses and inspect their intact name token after the operand.

@@ -13,11 +13,15 @@ const labels: Record<ElasticsearchParameterName, string> = {
   operator: 'Any/all words',
   fuzziness: 'Fuzziness',
   slop: 'Slop',
+  minimum_should_match: 'Minimum words matched',
   case_insensitive: 'Case insensitive',
 }
 
-// Read the condition's stored rows, including invalid slop drafts.
-const rows = computed(() => props.condition.parameters ?? [])
+// Read only Elasticsearch rows, including invalid integer drafts.
+const rows = computed(() => (props.condition.parameters ?? []).filter(
+  // Keep MongoDB's native regex parameter outside the Elasticsearch editor.
+  (parameter): parameter is ElasticsearchConditionParameter => parameter.name !== '$options',
+))
 
 // Preserve the catalogue's supported parameter order.
 const supported = computed(() => getElasticsearchParameterNames(props.condition.operatorId))
@@ -37,6 +41,7 @@ function initialParameter(name: ElasticsearchParameterName): ElasticsearchCondit
     case 'operator': return { name, value: 'or' }
     case 'fuzziness': return { name, value: 'AUTO' }
     case 'slop': return { name, value: 0 }
+    case 'minimum_should_match': return { name, value: 0 }
     case 'case_insensitive': return { name, value: false }
   }
 }
@@ -102,20 +107,22 @@ function toggleCaseInsensitive(index: number) {
   }
 }
 
-// Treat strings and unsafe, fractional or negative numbers as invalid slop.
-function isInvalidSlop(value: number | string) {
+// Treat strings and unsafe, fractional or negative numbers as invalid integer parameters.
+function isInvalidInteger(value: number | string) {
   return typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0
 }
 
-// Preserve invalid drafts and convert only complete nonnegative safe integers.
-function updateSlop(index: number, event: Event) {
+// Preserve integer parameter drafts and convert only complete nonnegative safe integers.
+function updateIntegerParameter(index: number, event: Event) {
+  const row = rows.value[index]
+  if (row?.name !== 'slop' && row?.name !== 'minimum_should_match') return
   const input = event.target as HTMLInputElement
   const draft = input.value
   const number = Number(draft)
-  const value = /^\d+$/.test(draft) && input.validity.valid && !isInvalidSlop(number)
+  const value = /^\d+$/.test(draft) && input.validity.valid && !isInvalidInteger(number)
     ? number
     : draft
-  replaceParameter(index, { name: 'slop', value })
+  replaceParameter(index, { name: row.name, value })
 }
 
 // Allow native navigation and shortcuts while preventing non-integer typing.
@@ -187,19 +194,19 @@ async function removeParameter(index: number, event: Event) {
         <option value="2">2</option>
       </select>
       <input
-        v-else-if="row.name === 'slop'"
+        v-else-if="row.name === 'slop' || row.name === 'minimum_should_match'"
         type="number"
         min="0"
         step="1"
         inputmode="numeric"
         :value="row.value"
-        aria-label="Slop"
-        :aria-invalid="isInvalidSlop(row.value)"
-        :aria-describedby="isInvalidSlop(row.value) ? `${editorId}-${index}-error` : undefined"
-        @keydown="restrictSlopKey"
-        @beforeinput="restrictSlopInput"
-        @paste="restrictSlopPaste"
-        @input="updateSlop(index, $event)"
+        :aria-label="labels[row.name]"
+        :aria-invalid="isInvalidInteger(row.value)"
+        :aria-describedby="[row.name === 'minimum_should_match' ? `${editorId}-${index}-help` : '', isInvalidInteger(row.value) ? `${editorId}-${index}-error` : ''].filter(Boolean).join(' ') || undefined"
+        @keydown="row.name === 'slop' && restrictSlopKey($event)"
+        @beforeinput="row.name === 'slop' && restrictSlopInput($event)"
+        @paste="row.name === 'slop' && restrictSlopPaste($event)"
+        @input="updateIntegerParameter(index, $event)"
       />
       <button
         v-else-if="row.name === 'case_insensitive'"
@@ -221,7 +228,15 @@ async function removeParameter(index: number, event: Event) {
         <span class="material-symbols-outlined" aria-hidden="true">remove</span>
       </button>
       <p
-        v-if="row.name === 'slop' && isInvalidSlop(row.value)"
+        v-if="row.name === 'minimum_should_match'"
+        :id="`${editorId}-${index}-help`"
+        class="parameter-help"
+      >
+        Minimum analyzed terms to match, intended for Any words. All words still requires every term.
+        This applies to this condition, not its group.
+      </p>
+      <p
+        v-if="(row.name === 'slop' || row.name === 'minimum_should_match') && isInvalidInteger(row.value)"
         :id="`${editorId}-${index}-error`"
         class="parameter-error"
         role="status"
@@ -313,6 +328,12 @@ button:disabled {
 
 input[aria-invalid='true'] {
   border-color: var(--border-error);
+}
+
+.parameter-help {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-control-muted);
 }
 
 .parameter-error {

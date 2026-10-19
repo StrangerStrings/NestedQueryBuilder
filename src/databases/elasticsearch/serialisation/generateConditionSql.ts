@@ -2,7 +2,7 @@ import type { SqlResult } from '../../../types/databaseAdapter'
 import type { QueryCondition } from '../../../types/query'
 import { resolveElasticsearchOperator, validateElasticsearchCondition } from '../validation'
 
-// Validate and serialize a Raw JSON clause or a visual condition with its configured parameters.
+// Validate and serialize Raw JSON or visual clauses, including analyzed prefixes and configured parameters.
 export function generateElasticsearchConditionSql(condition: QueryCondition): SqlResult {
   let nodeId: string | undefined
   try {
@@ -69,6 +69,8 @@ export function generateElasticsearchConditionSql(condition: QueryCondition): Sq
         break
       case 'match':
       case 'match_phrase':
+      case 'match_phrase_prefix':
+      case 'match_bool_prefix':
       case 'prefix':
       case 'wildcard':
         clause = { [operator.id]: { [field]: fieldValue } }

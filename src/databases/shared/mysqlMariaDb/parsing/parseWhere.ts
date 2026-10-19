@@ -118,7 +118,7 @@ function convertTokens(tokens: SqlFilterToken[], source: string[]): SqlFilterExp
   return { ...base, kind: 'leaf' }
 }
 
-// Validate the common filter grammar; MariaDB callers must additionally validate their syntax subset.
+// Validate the common grammar and join NULL-safe comparison tokens for the dialect condition readers.
 export function parseMysqlMariaDbWhere(filter: string, database: 'MySQL' | 'MariaDB'): SqlFilterParseResult {
   const trimmed = filter.trim()
   if (!trimmed) return { success: true, expression: null }
@@ -154,6 +154,14 @@ export function parseMysqlMariaDbWhere(filter: string, database: 'MySQL' | 'Mari
     const filterTokens = conversionTokens.filter((token) =>
       token.start >= (expression.start?.start ?? 0) && token.stop <= (expression.stop?.stop ?? 0),
     )
+    // The grammar lexes <=> as three symbols; preserve their full source range for Raw fallback.
+    for (let index = 0; index < filterTokens.length - 2; index += 1) {
+      const first = filterTokens[index]
+      const last = filterTokens[index + 2]
+      if (first?.text === '<' && filterTokens[index + 1]?.text === '=' && last?.text === '>') {
+        filterTokens.splice(index, 3, { ...first, text: '<=>', stop: last.stop })
+      }
+    }
     return { success: true, expression: convertTokens(filterTokens, Array.from(source)) }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : `Invalid ${database} filter syntax.` }

@@ -103,7 +103,7 @@ export function validateElasticsearchValue(operatorId: string, value: ConditionV
   }
 }
 
-// Require unique supported rows and canonical values, including complete nonnegative integer slop.
+// Require unique supported rows and canonical values, including nonnegative safe integer parameters.
 export function validateElasticsearchParameters(operatorId: string, parameters: unknown): void {
   if (parameters === undefined) return
   if (!Array.isArray(parameters)) throw new Error('Elasticsearch parameters must be a row array.')
@@ -130,7 +130,7 @@ export function validateElasticsearchParameters(operatorId: string, parameters: 
     if (name === 'operator' && (value === 'or' || value === 'and')) continue
     if (name === 'fuzziness' && (value === 'AUTO' || value === 0 || value === 1 || value === 2))
       continue
-    if (name === 'slop' && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+    if ((name === 'slop' || name === 'minimum_should_match') && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
       continue
     if (name === 'case_insensitive' && typeof value === 'boolean') continue
     throw new Error(`Invalid Elasticsearch ${name} parameter value.`)
