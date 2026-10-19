@@ -17,6 +17,11 @@ function toggleDarkMode() {
 function toggleOperatorLabels() {
   settingsStore.showOperatorLabels = !settingsStore.showOperatorLabels
 }
+
+// Switch group badges between readable modes and logical operators.
+function toggleGroupOperatorMode() {
+  settingsStore.groupOperatorMode = !settingsStore.groupOperatorMode
+}
 </script>
 
 <template>
@@ -54,6 +59,16 @@ function toggleOperatorLabels() {
       @click="toggleOperatorLabels"
     >
       <span class="material-symbols-outlined" aria-hidden="true">label</span>
+    </button>
+    <button
+      type="button"
+      class="builder-control"
+      aria-label="Group operator mode"
+      :aria-pressed="settingsStore.groupOperatorMode"
+      :title="settingsStore.groupOperatorMode ? 'Show ALL, ANY, NONE' : 'Show AND, OR, NOR'"
+      @click="toggleGroupOperatorMode"
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">account_tree</span>
     </button>
   </div>
 </template>

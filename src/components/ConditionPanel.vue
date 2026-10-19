@@ -16,8 +16,7 @@ const settingsStore = useSettingsStore()
 const rawConditionId = useId()
 const editorError = ref<string | null>(null)
 const panel = ref<HTMLElement | null>(null)
-const backButton = ref<HTMLButtonElement | null>(null)
-const editorButton = ref<HTMLButtonElement | null>(null)
+const closeButton = ref<HTMLButtonElement | null>(null)
 const viewportHeight = ref('100dvh')
 const viewportTop = ref('0px')
 
@@ -69,7 +68,7 @@ function trapTab(event: KeyboardEvent) {
 // Contain programmatic focus as well as keyboard focus while the covered UI is inert.
 function containFocus(event: FocusEvent) {
   if (props.mobile && event.target instanceof Node && !panel.value?.contains(event.target)) {
-    backButton.value?.focus({ preventScroll: true })
+    closeButton.value?.focus({ preventScroll: true })
   }
 }
 
@@ -84,7 +83,6 @@ function releaseMobileListeners() {
 
 // Change presentation without moving focus out of an existing input or recreating its browser draft.
 async function updateMobileMode(mobile: boolean | undefined) {
-  const focusOnBack = document.activeElement === backButton.value
   releaseMobileListeners()
   if (mobile) {
     updateViewport()
@@ -102,10 +100,8 @@ async function updateMobileMode(mobile: boolean | undefined) {
       !panel.value.contains(active) ||
       (active instanceof HTMLElement && active.getClientRects().length === 0)
     ) {
-      backButton.value?.focus({ preventScroll: true })
+      closeButton.value?.focus({ preventScroll: true })
     }
-  } else if (focusOnBack) {
-    editorButton.value?.focus({ preventScroll: true })
   }
 }
 
@@ -243,14 +239,9 @@ const emit = defineEmits<{
     :aria-label="mobile ? 'Condition editor' : 'Condition details'"
     :tabindex="mobile ? -1 : 0"
   >
-    <button ref="backButton" type="button" class="panel-back" @click="requestClose">
-      <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
-      Back to builder
-    </button>
     <div class="panel-header">
       <div class="editing-mode" role="group" aria-label="Condition editing mode">
         <button
-          ref="editorButton"
           type="button"
           :aria-pressed="editingMode === 'editor'"
           @click="openVisualEditor"
@@ -267,6 +258,7 @@ const emit = defineEmits<{
         </button>
       </div>
       <button
+        ref="closeButton"
         class="panel-close"
         type="button"
         aria-label="Close condition details"
@@ -362,10 +354,6 @@ const emit = defineEmits<{
   gap: 0.5rem;
 }
 
-.panel-back {
-  display: none;
-}
-
 .editing-mode {
   display: flex;
   flex: 1;
@@ -420,8 +408,7 @@ const emit = defineEmits<{
   cursor: pointer;
 }
 
-.panel-close:focus-visible,
-.panel-back:focus-visible {
+.panel-close:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -516,29 +503,6 @@ button .material-symbols-outlined {
     padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
       max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
     border-radius: 0;
-  }
-
-  .panel-back {
-    position: sticky;
-    top: env(safe-area-inset-top, 0px);
-    z-index: 30;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 44px;
-    width: 100%;
-    margin-bottom: 1rem;
-    padding: 0.5rem;
-    border: 1px solid var(--border-control);
-    border-radius: 4px;
-    background: var(--surface-panel);
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .panel-close {
-    display: none;
   }
 
   .condition-panel :deep(button),

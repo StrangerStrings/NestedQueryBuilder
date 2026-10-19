@@ -86,7 +86,7 @@ const emit = defineEmits<{
 <template>
   <div
     class="query-condition"
-    :class="{ 'is-selected': selected, 'is-invalid': isInvalid, 'is-editable': editable, 'is-raw': condition.rawSql !== undefined }"
+    :class="{ 'is-selected': selected, 'is-invalid': isInvalid, 'is-editable': editable }"
     :style="colourStyle"
     @click="editable && emit('select', condition)"
   >
@@ -289,47 +289,20 @@ const emit = defineEmits<{
 
 @media (width < 768px) {
   .query-condition {
-    display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
-    gap: 0.25rem;
-    min-width: 0;
-    padding: 0.5rem;
-    border-radius: 16px;
+    padding: 0.2rem 0.8rem;
   }
 
   .condition-content {
-    grid-row: 1;
-    grid-column: 1 / -1;
     min-height: 44px;
-    gap: 0.25rem 0.5rem;
-  }
-
-  .condition-content > span {
-    min-width: 0;
-    max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
   }
 
   .condition-drag-handle,
   .condition-delete {
-    grid-row: 2;
     width: 44px;
     height: 44px;
   }
 
-  .condition-drag-handle {
-    grid-column: 1;
-  }
-
-  .condition-warning {
-    grid-row: 2;
-    grid-column: 2;
-    justify-self: center;
-  }
-
   .condition-delete {
-    grid-column: 3;
     opacity: 1;
     pointer-events: auto;
   }

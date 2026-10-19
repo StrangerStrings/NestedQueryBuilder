@@ -110,7 +110,6 @@ onUnmounted(() => {
       @click="toggleMenu"
     >
       <span class="material-symbols-outlined" aria-hidden="true">menu</span>
-      Menu
     </button>
     <div
       id="query-navigation-menu"
@@ -137,13 +136,11 @@ onUnmounted(() => {
           "
           @click="selectTab(tab.id)"
         >
-          <img
+          <span
             v-if="tab.id === 'databases'"
             class="database-icon"
-            :src="queryStore.adapter.icon"
-            alt=""
-            width="20"
-            height="20"
+            :style="{ '--database-icon': `url(${JSON.stringify(queryStore.adapter.icon)})` }"
+            aria-hidden="true"
           />
           {{ tab.label }}
         </button>
@@ -153,6 +150,7 @@ onUnmounted(() => {
         <BuilderSettings />
       </div>
     </div>
+    <span class="brand-logo" role="img" aria-label="n(q(b">n(q(b</span>
   </nav>
 </template>
 
@@ -165,7 +163,19 @@ onUnmounted(() => {
 
 .navigation-menu {
   display: grid;
-  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(7rem, 1fr);
+}
+
+.brand-logo {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  font-family: 'Tomorrow', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--text-secondary);
 }
 
 .navigation-menu[hidden],
@@ -208,18 +218,18 @@ button.active {
 
 .database-icon {
   flex-shrink: 0;
-  object-fit: contain;
-}
-
-/* Keep the monochrome database icon visible on dark navigation surfaces. */
-:global(:root[data-theme='dark'] .tab-navigation .database-icon) {
-  filter: invert(1);
+  width: 20px;
+  height: 20px;
+  background: var(--text-secondary);
+  -webkit-mask: var(--database-icon) center / contain no-repeat;
+  mask: var(--database-icon) center / contain no-repeat;
 }
 
 @media (width < 768px) {
   .menu-toggle {
     display: inline-flex;
     min-height: 48px;
+    color: var(--text-secondary);
   }
 
   .navigation-menu {
@@ -245,6 +255,7 @@ button.active {
   .tab-group button {
     min-height: 44px;
     width: 100%;
+    font-size: 1.125rem;
     text-align: left;
   }
 
@@ -258,6 +269,8 @@ button.active {
 
   .mobile-settings p {
     margin: 0 0 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
   }
 }
 </style>

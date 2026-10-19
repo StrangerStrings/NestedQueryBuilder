@@ -7,6 +7,7 @@ type ResolvedTheme = 'light' | 'dark'
 // Store display preferences and synchronize appearance without changing query state.
 export const useSettingsStore = defineStore('settings', () => {
   const showOperatorLabels = ref(false)
+  const groupOperatorMode = ref(false)
   const dragAndDropMode = ref(false)
   const selectedPreference = ref<ThemePreference>('system')
   const resolvedTheme = ref<ResolvedTheme>('light')
@@ -18,6 +19,25 @@ export const useSettingsStore = defineStore('settings', () => {
   } catch {
     // Keep labels off when storage is unavailable.
   }
+
+  try {
+    groupOperatorMode.value = localStorage.getItem('query-builder.groupOperatorMode') === 'true'
+  } catch {
+    // Keep the default group labels when storage is unavailable.
+  }
+
+  // Save group label preferences without changing the query's logical modes.
+  watch(
+    groupOperatorMode,
+    (enabled) => {
+      try {
+        localStorage.setItem('query-builder.groupOperatorMode', String(enabled))
+      } catch {
+        // Keep the in-memory preference when storage is unavailable.
+      }
+    },
+    { flush: 'sync' },
+  )
 
   // Persist label changes immediately while keeping the toggle usable without storage.
   watch(
@@ -88,6 +108,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     showOperatorLabels,
+    groupOperatorMode,
     dragAndDropMode,
     themePreference,
     resolvedTheme,

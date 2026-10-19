@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue'
 import Draggable from 'vuedraggable'
 import { useQueryStore } from '../stores/queryStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -25,6 +25,13 @@ const props = withDefaults(
 
 const queryStore = useQueryStore()
 const settingsStore = useSettingsStore()
+
+// Change only the badge wording while retaining the stored group mode.
+const groupLabel = computed(() =>
+  settingsStore.groupOperatorMode
+    ? { all: 'AND', any: 'OR', none: 'NOR' }[props.group.mode]
+    : props.group.mode.toUpperCase(),
+)
 const inheritedSorting = inject(querySortingKey, null)
 const sorting = inheritedSorting ?? {
   drag: shallowRef<QueryDrag | null>(null),
@@ -226,10 +233,10 @@ function isQueryCondition(child: QueryNode): child is QueryConditionModel {
     <button
       type="button"
       class="mode-badge"
-      aria-label="Cycle group mode"
+      :aria-label="`Cycle group mode, current mode: ${groupLabel}`"
       @click="queryStore.cycleGroupMode(group.id)"
     >
-      <h3>{{ group.mode }}</h3>
+      <h3>{{ groupLabel }}</h3>
     </button>
     <button
       v-if="settingsStore.dragAndDropMode && group.id !== queryStore.query.id"
