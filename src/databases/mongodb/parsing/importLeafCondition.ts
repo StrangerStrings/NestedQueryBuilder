@@ -1,6 +1,6 @@
-import type { ConditionValue, QueryCondition } from '../../../types/query'
+import type { ConditionValue, MongoDBConditionParameter, QueryCondition } from '../../../types/query'
 import { createId } from '../../../utils/createId'
-import { resolveMongoDBOperator, validateMongoDBCondition, validateMongoDBFieldName, validateMongoDBQueryNumber } from '../validation'
+import { resolveMongoDBOperator, validateMongoDBCondition, validateMongoDBFieldName, validateMongoDBQueryNumber, validateMongoDBRegexOptions } from '../validation'
 import { JsonSourceError, type JsonSourceDocument, type JsonSourceResult } from '../../shared/parsing/readJsonSource'
 
 export type ImportLeafConditionResult = JsonSourceResult<QueryCondition[]>
@@ -12,7 +12,7 @@ function memberPath(path: string, key: string): string {
   return `${path}[${JSON.stringify(key)}]`
 }
 
-// Convert one field predicate; callers retain responsibility for logical filter structure.
+// Convert complete field predicates atomically, pairing regex options in either member order.
 export function importLeafCondition(document: JsonSourceDocument, fieldName: string, fieldPath: string): ImportLeafConditionResult {
   // Preserve the offending original operand, with field and document fallbacks.
   function sourceError(kind: JsonSourceError['kind'], message: string, path: string): JsonSourceError {
@@ -64,14 +64,15 @@ export function importLeafCondition(document: JsonSourceDocument, fieldName: str
     return { hasValue: true, dataType, dataShape: 'list', value: values } as ConditionValue
   }
 
-  // Validate completed conditions using the same catalogue contract as generation.
-  function condition(operatorId: string, value: ConditionValue, path: string): QueryCondition {
+  // Validate completed conditions and optional regex flags using the generation contract.
+  function condition(operatorId: string, value: ConditionValue, path: string, parameters?: MongoDBConditionParameter[]): QueryCondition {
     const result: QueryCondition = {
       kind: 'condition',
       id: createId(),
       field: { name: fieldName, modifier: null },
       operatorId,
       value,
+      ...(parameters === undefined ? {} : { parameters }),
     }
     try {
       validateMongoDBCondition(result)
@@ -81,11 +82,16 @@ export function importLeafCondition(document: JsonSourceDocument, fieldName: str
     return result
   }
 
-  // Translate only supported MongoDB field operators and their literal operands.
+  // Translate supported predicates, selecting the BSON type catalogue entry by operand shape.
   function operatorCondition(operator: string, input: unknown, path: string): QueryCondition {
     if (operator === '$exists') {
       if (typeof input !== 'boolean') fail('unsupported-value', 'MongoDB $exists requires a Boolean.', path)
       return condition(input ? 'exists' : 'missing', { hasValue: false }, path)
+    }
+    if (operator === '$type') {
+      return Array.isArray(input)
+        ? condition('type_list', listValue(input, path), path)
+        : condition('type', singleValue(scalar(input, path)), path)
     }
     if (!['$eq', '$ne', '$gt', '$gte', '$lt', '$lte', '$in', '$nin', '$all', '$regex', '$size'].includes(operator)) {
       fail('unsupported-operator', `Unsupported MongoDB field predicate operator: ${operator}.`, path)
@@ -126,9 +132,28 @@ export function importLeafCondition(document: JsonSourceDocument, fieldName: str
     if (members.some(([key]) => bsonWrapperKeys.includes(key))) {
       fail('unsupported-value', 'MongoDB BSON and Extended JSON value wrappers are unsupported; field values must use the primitive-only subset.', fieldPath)
     }
+    const predicates = input as Record<string, unknown>
+    let regexParameters: MongoDBConditionParameter[] | undefined
+    if (Object.prototype.hasOwnProperty.call(predicates, '$options')) {
+      const optionsPath = memberPath(fieldPath, '$options')
+      if (!Object.prototype.hasOwnProperty.call(predicates, '$regex')) {
+        fail('unsupported-operator', 'MongoDB $options requires $regex on the same field.', optionsPath)
+      }
+      const options = predicates.$options
+      try {
+        validateMongoDBRegexOptions(options)
+      } catch (error) {
+        fail('unsupported-value', error instanceof Error ? error.message : 'Invalid MongoDB regex options.', optionsPath)
+      }
+      regexParameters = [{ name: '$options', value: options }]
+    }
     const conditions: QueryCondition[] = []
     for (const [operator, operand] of members) {
-      conditions.push(operatorCondition(operator, operand, memberPath(fieldPath, operator)))
+      if (operator === '$options') continue
+      const path = memberPath(fieldPath, operator)
+      conditions.push(operator === '$regex'
+        ? condition('regex', singleValue(scalar(operand, path)), path, regexParameters)
+        : operatorCondition(operator, operand, path))
     }
     return { success: true, value: conditions }
   } catch (error) {

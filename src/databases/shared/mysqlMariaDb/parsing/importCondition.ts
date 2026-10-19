@@ -298,7 +298,7 @@ class ConditionReader {
   }
 }
 
-// Convert one condition atomically; unsupported syntax remains distinct from invalid SQL.
+// Convert one condition atomically, normalizing regex aliases only for MariaDB.
 export function importVisualCondition(
   expression: SqlFilterExpression,
   operators: readonly DatabaseOperator[],
@@ -313,6 +313,10 @@ export function importVisualCondition(
     if (operatorId === 'IS' || operatorId === 'NOT') {
       if (operatorId === 'IS' && reader.consume('NOT')) operatorId += ' NOT'
       operatorId += ` ${reader.take().toUpperCase()}`
+    }
+    if (database === 'MariaDB') {
+      if (operatorId === 'RLIKE') operatorId = 'REGEXP'
+      if (operatorId === 'NOT RLIKE') operatorId = 'NOT REGEXP'
     }
     const operator = operators.find((candidate) => candidate.id === operatorId)
     if (!operator)

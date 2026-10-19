@@ -59,9 +59,21 @@ export const mongodbOperators = [
     valueInput: { hasValue: true, dataShape: 'list', dataTypes: primitiveTypes },
   },
   {
+    id: 'type' as const,
+    label: 'has type',
+    description: 'Matches a BSON type alias or numeric code, including array elements. The alias "array" matches the array itself.',
+    valueInput: { hasValue: true, dataShape: 'single', dataTypes: orderedTypes },
+  },
+  {
+    id: 'type_list' as const,
+    label: 'has any listed type',
+    description: 'Matches any listed BSON type, including array elements; "array" matches the array itself. Use a nonempty list of aliases or numeric codes, without mixing them.',
+    valueInput: { hasValue: true, dataShape: 'list', dataTypes: orderedTypes },
+  },
+  {
     id: 'regex' as const,
     label: 'matches regex',
-    description: 'Matches text using a MongoDB regular expression. Inline flags are supported; a separate $options value is not.',
+    description: 'Matches text using a native MongoDB regular expression. Optional Parameters provides yes/no controls for i (case-insensitive), m (multiline anchors), s (dot matches newlines), and x (ignore unescaped whitespace and allow comments). Patterns and inline flags are preserved; imported u is retained.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {

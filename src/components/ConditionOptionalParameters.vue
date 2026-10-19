@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
 import ElasticsearchParameterEditor from './ElasticsearchParameterEditor.vue'
+import MongoDBRegexParameterEditor from './MongoDBRegexParameterEditor.vue'
 import { useQueryStore } from '../stores/queryStore'
 import { getElasticsearchParameterNames } from '../databases/elasticsearch/parameters'
 import type { QueryCondition } from '../types/query'
@@ -11,11 +12,14 @@ const parameterEditorId = useId()
 const parametersExpanded = ref(false)
 const parametersControl = ref<HTMLButtonElement | null>(null)
 
-// Offer parameters only for supported Elasticsearch operators.
+// Offer database-specific parameters only for compatible visual conditions.
 const supportsParameters = computed(
   () =>
-    queryStore.database === 'elasticsearch' &&
-    getElasticsearchParameterNames(props.condition.operatorId).length > 0,
+    props.condition.rawSql === undefined && (
+      (queryStore.database === 'elasticsearch' &&
+        getElasticsearchParameterNames(props.condition.operatorId).length > 0) ||
+      (queryStore.database === 'mongodb' && props.condition.operatorId === 'regex')
+    ),
 )
 
 // Reopen configured conditions without changing their stored rows.
@@ -45,10 +49,18 @@ watch(
   },
 )
 
-// Clear stored parameters only when the user explicitly collapses the editor.
+// Clear explicit controls on collapse while preserving MongoDB's imported Unicode flag.
 function toggleParameters() {
   if (parametersExpanded.value) {
-    queryStore.updateCondition(props.condition.id, { parameters: [] })
+    const options = props.condition.parameters?.find(
+      // Preserve u separately from the four editable flags.
+      (parameter) => parameter.name === '$options',
+    )
+    queryStore.updateCondition(props.condition.id, {
+      parameters: queryStore.database === 'mongodb' && options?.name === '$options' && options.value.includes('u')
+        ? [{ name: '$options', value: 'u' }]
+        : [],
+    })
   }
   parametersExpanded.value = !parametersExpanded.value
 }
@@ -70,7 +82,12 @@ function toggleParameters() {
     </button>
     <div :id="parameterEditorId" v-show="parametersExpanded">
       <ElasticsearchParameterEditor
-        v-if="parametersExpanded"
+        v-if="parametersExpanded && queryStore.database === 'elasticsearch'"
+        :key="condition.id"
+        :condition="condition"
+      />
+      <MongoDBRegexParameterEditor
+        v-if="parametersExpanded && queryStore.database === 'mongodb'"
         :key="condition.id"
         :condition="condition"
       />

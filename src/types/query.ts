@@ -40,6 +40,12 @@ export type FieldModifier =
   | 'initcap'
   | 'reverse'
   | 'length'
+  | 'typeof'
+  | 'char_length'
+  | 'year'
+  | 'month'
+  | 'dayofmonth'
+  | 'date'
   | 'abs'
   | 'round'
   | 'floor'
@@ -53,12 +59,16 @@ export type ConditionField = {
   modifier: FieldModifier | null
 }
 
-/** A configured Elasticsearch parameter; slop strings retain unfinished or invalid editor input. */
+/** A configured Elasticsearch parameter; integer parameter strings retain invalid editor drafts. */
 export type ElasticsearchConditionParameter =
   | { name: 'operator'; value: 'or' | 'and' }
   | { name: 'fuzziness'; value: 'AUTO' | 0 | 1 | 2 }
   | { name: 'slop'; value: number | string }
+  | { name: 'minimum_should_match'; value: number | string }
   | { name: 'case_insensitive'; value: boolean }
+
+/** One native MongoDB regex parameter, including an imported redundant u flag. */
+export type MongoDBConditionParameter = { name: '$options'; value: string }
 
 /** A leaf in the query tree that applies an operator to a field. */
 export type QueryCondition = {
@@ -69,7 +79,7 @@ export type QueryCondition = {
   field: ConditionField
   operatorId: string
   value: ConditionValue
-  parameters?: ElasticsearchConditionParameter[]
+  parameters?: (ElasticsearchConditionParameter | MongoDBConditionParameter)[]
 }
 
 /** A group that combines conditions or nested groups. */

@@ -29,6 +29,7 @@ const charsets = new Set(['utf8mb4', 'utf8mb3', 'latin1', 'ascii', 'binary'])
 const collations = new Set([
   'utf8mb4_bin', 'utf8mb4_general_ci', 'utf8mb3_bin', 'utf8mb3_general_ci',
   'latin1_bin', 'latin1_swedish_ci', 'ascii_bin', 'ascii_general_ci', 'binary',
+  'utf8mb4_unicode_ci', 'utf8mb4_unicode_520_ci', 'utf8mb3_unicode_ci', 'utf8mb3_unicode_520_ci',
 ])
 
 // Decode grammar-provided option names without translating SQL or deriving column suggestions.
@@ -43,7 +44,7 @@ function unsupported(node: ParseTree): never {
   throw new Error(`Unsupported MariaDB 11.4 schema syntax: ${node.getText().slice(0, 100)}. Use the supported explicit CREATE TABLE subset.`)
 }
 
-// Validate original expression tokens while keeping parser structures out of the shared field model.
+// Validate original expression tokens with schema collations, outside the shared field model.
 function validateExpression(node: ParserRuleContext, tokens: Token[], predicate: boolean): void {
   const start = node.start?.start ?? -1
   const stop = node.stop?.stop ?? -1
@@ -51,7 +52,7 @@ function validateExpression(node: ParserRuleContext, tokens: Token[], predicate:
     .filter((token) => token.start >= start && token.stop <= stop && token.type !== -1 &&
       (token.channel === 0 || token.type === MySqlLexer.STRING_CHARSET_NAME))
     .map((token) => ({ text: token.text ?? '', type: token.type, start: token.start, stop: token.stop }))
-  const error = mariadbSchemaExpressionError(expressionTokens, predicate)
+  const error = mariadbSchemaExpressionError(expressionTokens, predicate, collations)
   if (error) throw new Error(`Unsupported MariaDB schema expression: ${error}`)
 }
 

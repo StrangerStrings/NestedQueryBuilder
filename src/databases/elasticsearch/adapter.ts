@@ -25,7 +25,7 @@ export const elasticsearchAdapter: DatabaseAdapter = {
     schemaPlaceholder:
       '{"properties":{"status":{"type":"keyword"},"message":{"type":"text","fields":{"exact":{"type":"keyword"}}},"active":{"type":"boolean"}}}',
     queryHelp:
-      'Paste Query DSL JSON containing only a query member. For example: {"query":{"bool":{"filter":[{"term":{"status":"online"}}]}}}. Conditions must use filter or must_not context. Combine conditions with bool filter, must_not and required should clauses (minimum_should_match 1). Supported conditions become editable fields; unsupported clauses and options are rejected without falling back to Raw mode. Scoring queries, optional should clauses, sorting, pagination and aggregations are not supported. A successful import replaces the current query; a failed import leaves it unchanged.',
+      'Paste Query DSL JSON containing only a query member. For example: {"query":{"bool":{"filter":[{"term":{"status":"online"}}]}}}. Conditions must use filter or must_not context. Combine conditions with bool filter, must_not and required should clauses (group-level minimum_should_match 1). Match also supports a condition-level Minimum words matched (minimum_should_match): a nonnegative safe whole number of analyzed terms, intended for Any words; All words still requires every term. Supported conditions become editable fields; unsupported clauses and options are rejected without falling back to Raw mode. Scoring queries, optional should clauses, sorting, pagination and aggregations are not supported. A successful import replaces the current query; a failed import leaves it unchanged.',
     queryPlaceholder: '{"query":{"bool":{"filter":[{"term":{"status":"online"}}]}}}',
   },
   operators: elasticsearchOperators,

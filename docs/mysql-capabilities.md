@@ -4,15 +4,21 @@ MySQL supports visual filters, WHERE export, and SQL filter import with validate
 
 | Operators | Input shape | Value types |
 | --- | --- | --- |
-| `=`, `<>`, `>`, `>=`, `<`, `<=` | Single | Text, finite number, boolean, date, time, local datetime, field reference |
+| `=`, `<=>`, `<>`, `>`, `>=`, `<`, `<=` | Single | Text, finite number, boolean, date, time, local datetime, field reference |
 | `IN`, `NOT IN` | Non-empty list | The same types, with one homogeneous type per list |
 | `BETWEEN`, `NOT BETWEEN` | Range with both endpoints | The same types, with one homogeneous type per range |
 | `IS NULL`, `IS NOT NULL` | No value | None; requires `hasValue: false` |
+| `IS TRUE`, `IS FALSE`, `IS NOT TRUE`, `IS NOT FALSE` | No value | None; native truth tests with `hasValue: false` |
 | `LIKE`, `NOT LIKE` | Single SQL pattern | Text or field reference |
+| `REGEXP`, `NOT REGEXP` | Single native regular expression | Text or field reference |
 
 Dates use years 1000–9999. Time and local datetime inputs have seconds precision and no timezone. Field references are quoted identifiers, including list items and range endpoints. Invalid literals, incomplete ranges, empty lists, and unsupported operators/modifiers return generation errors associated with the condition.
 
-Text comparisons use MySQL's configured collation. No case-insensitive operator, forced collation, or automatic LOWER rewrite is applied. LIKE accepts SQL patterns: `%` matches zero or more characters and `_` matches one character. SQL NULL requires a null-check operator rather than a literal value. Durations, ILIKE/NOT ILIKE, and IS TRUE/IS FALSE are unavailable in this initial catalogue.
+Text comparisons use MySQL's configured collation. No case-insensitive operator, forced collation, or automatic LOWER rewrite is applied. LIKE accepts SQL patterns: `%` matches zero or more characters and `_` matches one character. Native `<=>` is NULL-safe equality: two NULLs are equal, and a NULL and a non-NULL value are unequal. The visual editor accepts scalar values or field references; literal-NULL comparisons on either side remain validated Raw SQL, without rewriting them to null checks. Durations and ILIKE/NOT ILIKE are unavailable.
+
+Boolean predicates retain native MySQL truth-test semantics: `IS TRUE` matches nonzero values and `IS FALSE` matches zero values; neither matches NULL. `IS NOT TRUE` matches zero values and NULL, while `IS NOT FALSE` matches nonzero values and NULL. These predicates require no value input and are exported directly, without rewriting them to comparisons with 1 or 0. MySQL applies its native numeric coercion to the field value.
+
+REGEXP and NOT REGEXP use native MySQL regular-expression semantics; use anchors when a whole-text match is required. Patterns retain their contents through ordinary SQL string escaping, with no LIKE ESCAPE clause, wildcard insertion, pattern rewriting, or JavaScript regex validation. Case sensitivity follows the applicable collation. NOT REGEXP retains SQL NULL semantics.
 
 ## Explicit field modifier allowlist
 
@@ -24,12 +30,17 @@ All included functions accept the field as their only argument. These are delibe
 | `trim`, `ltrim`, `rtrim` | Text | Text with both/leading/trailing spaces removed |
 | `reverse` | Text | Reversed text |
 | `length` | Text | Number of bytes, not characters |
+| `char_length` | Text | Number of characters, not bytes |
+| `year` | Date or datetime | Numeric year; zero dates yield 0 |
+| `month` | Date or datetime | Numeric month (1–12); a zero month yields 0 |
+| `dayofmonth` | Date or datetime | Numeric day of month (1–31); a zero day yields 0 |
+| `date` | Date or datetime | Date portion, without the time |
 | `abs` | Number | Absolute numeric value |
 | `round` | Number | Numeric value rounded to zero decimal places; algorithm depends on input type |
 | `floor`, `ceil` | Number | Numeric integer rounded downward/upward |
 | `sqrt` | Nonnegative number | Numeric square root; negative inputs produce SQL NULL |
 
-Functions also propagate SQL NULL. The tree stores field names without schema types, so field argument types cannot be verified locally; MySQL handles field typing and coercion. Result types above describe the function result, not a restriction on SQL's comparison coercions.
+Functions also propagate SQL NULL. Date modifiers use the same single-field selector as other modifiers, without argument controls, field-type inference, or added timezone conversion; MySQL evaluates the selected field in its native session context. The tree stores field names without schema types, so field argument types cannot be verified locally; MySQL handles field typing and coercion. Result types above describe the function result, not a restriction on SQL's comparison coercions.
 
 INITCAP is unavailable as a MySQL built-in. PostgreSQL TRUNC is excluded: MySQL TRUNCATE requires a second precision argument, which the shared modifier model cannot represent. No modifier is inherited automatically from PostgreSQL.
 
@@ -75,7 +86,7 @@ Import accepts a filter with or without WHERE, plus an optional trailing semicol
 
 Import assumes MySQL 8.4 with `ANSI_QUOTES`, `NO_BACKSLASH_ESCAPES`, `HIGH_NOT_PRECEDENCE`, and `PIPES_AS_CONCAT` disabled. These assumptions appear beside the import and raw controls with accessible help associations. Single- and double-quoted strings are decoded using standard MySQL escapes; backticks identify fields. UTF-8 hex strings emitted by the exporter are decoded without replacement characters. Explicit charsets that visual serialization would discard remain raw. Plain strings resembling dates are kept as text; only exact local temporal casts or typed temporal literals become temporal values. Fractional seconds, timezones, invalid calendar values, lossy numeric conversions, changed exact/approximate number typing, mixed value lists, meaningful unsupported casts, and unsupported modifiers are not coerced into visual values.
 
-Structured AND and OR become all and any groups. NOT becomes none; an OR operand supplies its children, and any other operand remains one child. Only groups sharing the same mode are flattened. No NULL branches or other rewrites are added. Supported conditions are editable using the current catalogue; `!=` is normalized to `<>`. Custom pattern escapes remain raw. Imported LIKE without ESCAPE uses the assumed mode's backslash default, which structured export makes explicit.
+Structured AND and OR become all and any groups. NOT becomes none; an OR operand supplies its children, and any other operand remains one child. Only groups sharing the same mode are flattened. No NULL branches or other rewrites are added. Supported conditions are editable using the current catalogue; `!=` is normalized to `<>`. For example, `a <=> b`, `name NOT REGEXP pattern_column`, and `CHAR_LENGTH(name) > 3` become visual conditions. All four truth predicates, including `active IS NOT FALSE`, retain their native operation. Complete single-field comparisons such as `YEAR(created_at) = 2026`, `MONTH(created_at) = 10`, `DAYOFMONTH(created_at) = 19`, and `DATE(created_at) = CAST('2026-10-19' AS DATE)` also become visual conditions. These additions support validated Raw entry and SQL export; nested modifiers, extra arguments, and other expressions outside the visual model retain the existing Raw handling. RLIKE aliases do not gain visual support in MySQL. Custom pattern escapes remain raw. Imported LIKE without ESCAPE uses the assumed mode's backslash default, which structured export makes explicit.
 
 Valid expressions outside visual capabilities use PostgreSQL's opaque raw-condition fallback when safe. Their source is retained, not regenerated from a PostgreSQL AST. Before acceptance and every export, a raw expression is validated independently of visual conversion. Raw strings with backslash escapes or double quotes, ambiguous NOT precedence, and `||` are rejected rather than silently changing across modes. Raw LIKE requires explicit ESCAPE. Use single quotes with doubled apostrophes or UTF-8 hex literals, explicit OR, and parenthesized NOT operands. Raw export wraps the complete expression in parentheses with a newline before closing, preserving precedence and preventing line comments from consuming surrounding SQL. Switching to the visual editor requires a complete supported single condition; valid unsupported SQL stays in Raw mode. Database switching clears the query, preventing PostgreSQL raw conditions from carrying into MySQL.
 

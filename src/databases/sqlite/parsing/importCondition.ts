@@ -57,6 +57,17 @@ function intactToken(prepared: SqlitePreparedSource, range: SqliteRange): Sqlite
   throw new Error('SQLite operand has no intact original source token.')
 }
 
+// Recognize truth-test operands only from native unqualified IDs with intact unquoted spelling.
+function truthTestOperand(prepared: SqlitePreparedSource, expression: Expr): 'TRUE' | 'FALSE' | null {
+  const node = scalarNode(expression)
+  if (node.type !== 'Id') return null
+  const token = intactToken(prepared, node.span)
+  const spelling = asciiLower(token.fragment)
+  if (spelling === 'true') return 'TRUE'
+  if (spelling === 'false') return 'FALSE'
+  return null
+}
+
 // Preserve bare TRUE/FALSE resolution while admitting strictly quoted and qualified references.
 function referenceName(prepared: SqlitePreparedSource, expression: Expr): string {
   const node = scalarNode(expression)
@@ -65,7 +76,7 @@ function referenceName(prepared: SqlitePreparedSource, expression: Expr): string
     const token = intactToken(prepared, node.span)
     const spelling = asciiLower(token.fragment)
     if (spelling === 'true' || spelling === 'false') {
-      throw new RequiresRawCondition('Bare TRUE/FALSE expressions and truth tests require Raw mode to preserve name resolution.')
+      throw new RequiresRawCondition('Bare TRUE/FALSE outside a truth-test operand require Raw mode to preserve name resolution.')
     }
     parts.push(node.name)
   } else if (node.type === 'QualifiedExpr') {
@@ -87,15 +98,18 @@ function referenceName(prepared: SqlitePreparedSource, expression: Expr): string
   return parts.join('.')
 }
 
-// Admit one undecorated allowlisted modifier with exactly one unmodified field argument.
+// Preserve Raw-only scalar and date/time calls before admitting a single-field visual modifier.
 function conditionField(prepared: SqlitePreparedSource, expression: Expr): ConditionField {
   const node = scalarNode(expression)
   if (node.type !== 'FunctionCallExpr') return { name: referenceName(prepared, node), modifier: null }
+  const name = asciiLower(node.name.name)
+  if (['coalesce', 'ifnull', 'nullif', 'instr', 'substr', 'replace', 'date', 'time', 'datetime', 'julianday', 'strftime'].includes(name)) {
+    throw new RequiresRawCondition(`${name} is supported only in Raw filter conditions; keep Raw mode to preserve its arguments and source.`)
+  }
   if (node.distinctness !== undefined || node.orderBy !== undefined || node.filterOver !== undefined ||
       node.args?.length !== 1 || !node.args[0]) {
     throw new RequiresRawCondition('Decorated or multiple-argument modifiers require Raw mode.')
   }
-  const name = asciiLower(node.name.name)
   for (const modifier of sqliteFieldModifiers) {
     if (modifier === name) return { name: referenceName(prepared, node.args[0]), modifier }
   }
@@ -155,7 +169,7 @@ function conditionValue(prepared: SqlitePreparedSource, shape: ValueShape, opera
   return { hasValue: true, dataShape: shape, dataType: first.dataType, value: values } as ConditionValue
 }
 
-// Require one complete native condition; preservation-only nodes never lose their extra syntax.
+// Convert native truth tests from intact operands; preservation-only nodes retain their syntax.
 function visualParts(prepared: SqlitePreparedSource, expression: Expr): Pick<QueryCondition, 'field' | 'operatorId' | 'value'> {
   const node = scalarNode(expression)
   let lhs: Expr
@@ -168,8 +182,12 @@ function visualParts(prepared: SqlitePreparedSource, expression: Expr): Pick<Que
       if (!comparison) throw new RequiresRawCondition('Scalar operators and comparison chains require Raw mode.')
       lhs = node.left
       operatorId = comparison
-      if ((node.op === 'Is' || node.op === 'IsNot') && scalarNode(node.right).type === 'NullLiteral') {
-        operatorId = node.op === 'Is' ? 'IS NULL' : 'IS NOT NULL'
+      const isComparison = node.op === 'Is' || node.op === 'IsNot'
+      const truthOperand = isComparison ? truthTestOperand(prepared, node.right) : null
+      if (isComparison && scalarNode(node.right).type === 'NullLiteral') {
+        operatorId = `${comparison} NULL`
+      } else if (truthOperand) {
+        operatorId = `${comparison} ${truthOperand}`
       } else {
         shape = 'single'
         operands = [node.right]

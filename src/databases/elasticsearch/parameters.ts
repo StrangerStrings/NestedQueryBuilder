@@ -3,7 +3,7 @@ import type { ElasticsearchConditionParameter } from '../../types/query'
 export type ElasticsearchParameterName = ElasticsearchConditionParameter['name']
 
 const supportedParameters: Record<string, readonly ElasticsearchParameterName[]> = {
-  match: ['operator', 'fuzziness'],
+  match: ['operator', 'fuzziness', 'minimum_should_match'],
   match_phrase: ['slop'],
   term: ['case_insensitive'],
   not_term: ['case_insensitive'],

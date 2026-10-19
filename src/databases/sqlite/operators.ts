@@ -53,6 +53,30 @@ export const sqliteOperators: DatabaseOperator[] = [
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: [...comparisonTypes] },
   },
   {
+    id: 'IS TRUE',
+    label: 'is true',
+    description: 'Tests native SQLite truth: nonzero after numeric conversion. NULL does not match; no value is required.',
+    valueInput: { hasValue: false },
+  },
+  {
+    id: 'IS FALSE',
+    label: 'is false',
+    description: 'Tests native SQLite falsity: zero after numeric conversion. NULL does not match; no value is required.',
+    valueInput: { hasValue: false },
+  },
+  {
+    id: 'IS NOT TRUE',
+    label: 'is not true',
+    description: 'Matches zero after numeric conversion or NULL. Nonzero values are true; no value is required.',
+    valueInput: { hasValue: false },
+  },
+  {
+    id: 'IS NOT FALSE',
+    label: 'is not false',
+    description: 'Matches nonzero after numeric conversion or NULL. Zero values are false; no value is required.',
+    valueInput: { hasValue: false },
+  },
+  {
     id: 'IN',
     label: 'in list',
     description: 'Matches values equal to any value in the supplied list.',

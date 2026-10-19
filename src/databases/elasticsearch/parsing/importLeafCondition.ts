@@ -15,7 +15,7 @@ function memberPath(path: string, key: string): string {
   return `${path}[${JSON.stringify(key)}]`
 }
 
-// Import a leaf and its explicit parameters; callers must establish an allowed filter context.
+// Import leaves, including query-only analyzed prefixes, within a caller-established filter context.
 export function importLeafCondition(document: JsonSourceDocument, clausePath: string): ImportLeafConditionResult {
   // Attach failures to the original value range, including escaped source spellings.
   function sourceError(kind: JsonSourceError['kind'], message: string, path: string): JsonSourceError {
@@ -58,13 +58,16 @@ export function importLeafCondition(document: JsonSourceDocument, clausePath: st
     fail('unsupported-value', 'Expected a string, number or Boolean query value.', path)
   }
 
-  // Normalize supported spellings after source-number validation and report failures at the parameter.
+  // Normalize supported spellings and digit-only match thresholds after source-number validation.
   function parameter(name: ElasticsearchParameterName, input: unknown, path: string, operatorId: string): ElasticsearchConditionParameter {
     let value = typeof input === 'number' ? scalar(input, path) : input
     if (name === 'operator' && (value === 'OR' || value === 'AND')) value = value.toLowerCase()
     if (name === 'fuzziness' && typeof value === 'string') {
       if (value.toUpperCase() === 'AUTO') value = 'AUTO'
       else if (value === '0' || value === '1' || value === '2') value = Number(value)
+    }
+    if (name === 'minimum_should_match' && typeof value === 'string' && /^\d+$/.test(value)) {
+      value = Number(value)
     }
     const row = { name, value }
     try {
@@ -92,7 +95,7 @@ export function importLeafCondition(document: JsonSourceDocument, clausePath: st
     }
     const clauseName = clauseKeys[0]!
     const bodyPath = memberPath(clausePath, clauseName)
-    if (!['term', 'terms', 'match', 'match_phrase', 'prefix', 'wildcard', 'range', 'exists'].includes(clauseName)) {
+    if (!['term', 'terms', 'match', 'match_phrase', 'match_phrase_prefix', 'match_bool_prefix', 'prefix', 'wildcard', 'range', 'exists'].includes(clauseName)) {
       fail('unsupported-operator', `Unsupported Elasticsearch leaf clause: ${clauseName}.`, bodyPath)
     }
     const body = object(clause[clauseName], bodyPath)
@@ -154,7 +157,7 @@ export function importLeafCondition(document: JsonSourceDocument, clausePath: st
         let literal = input
         if (input !== null && typeof input === 'object' && !Array.isArray(input)) {
           const options = object(input, fieldPath)
-          const member = clauseName === 'match' || clauseName === 'match_phrase' ? 'query' : 'value'
+          const member = ['match', 'match_phrase', 'match_phrase_prefix', 'match_bool_prefix'].includes(clauseName) ? 'query' : 'value'
           const supported = getElasticsearchParameterNames(clauseName)
           onlyMembers(options, [member, ...supported], fieldPath)
           if (!Object.prototype.hasOwnProperty.call(options, member)) {

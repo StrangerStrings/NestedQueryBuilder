@@ -129,7 +129,7 @@ export function importElasticsearchWhere(source: string): FilterImportResult {
     return requirements.length === 1 ? requirements[0]! : group('all', requirements)
   }
 
-  // Reject scoring leaves and constants before delegating supported filter leaves.
+  // Reject scoring leaves and constants before delegating filter leaves, including analyzed prefixes.
   function clause(value: unknown, path: string, context: QueryContext): QueryNode {
     const input = object(value, path)
     const keys = Object.keys(input)
@@ -151,7 +151,7 @@ export function importElasticsearchWhere(source: string): FilterImportResult {
       fail('unsupported-expression', message, bodyPath)
     }
     if (
-      !['term', 'terms', 'match', 'match_phrase', 'prefix', 'wildcard', 'range', 'exists'].includes(
+      !['term', 'terms', 'match', 'match_phrase', 'match_phrase_prefix', 'match_bool_prefix', 'prefix', 'wildcard', 'range', 'exists'].includes(
         name,
       )
     ) {
