@@ -5,10 +5,12 @@ import type { ConditionValue } from '../../types/query'
 import ConditionScalarInput from './ConditionScalarInput.vue'
 import ConditionListInput from './ConditionListInput.vue'
 import ConditionFieldInput from '../ConditionFieldInput.vue'
+import { useQueryStore } from '../../stores/queryStore'
 
 const props = defineProps<{
   operator: DatabaseOperator
   modelValue: ConditionValue
+  sessionKey: string
   fieldOptions: string[]
 }>()
 
@@ -28,6 +30,7 @@ const temporalWrapper = ref<HTMLElement | null>(null)
 const temporalTrigger = ref<HTMLButtonElement | null>(null)
 const temporalMenu = ref<HTMLElement | null>(null)
 const temporalMenuId = useId()
+const queryStore = useQueryStore()
 
 const typeIcons = { text: 'text_fields', number: '123', boolean: 'check_circle', field: 'view_column' }
 
@@ -78,8 +81,10 @@ function closeTemporal(restoreFocus = false) {
 
 // Open the menu and focus its selected option, or the requested boundary option.
 async function openTemporal(boundary?: 'first' | 'last') {
+  const revision = queryStore.restorationRevision
   temporalOpen.value = true
   await nextTick()
+  if (revision !== queryStore.restorationRevision || !temporalOpen.value) return
   const buttons = temporalMenu.value?.querySelectorAll<HTMLButtonElement>('button')
   if (!buttons?.length) return
   const selected = temporalTypes.value.findIndex((option) => option === selectedTemporal.value)
@@ -134,6 +139,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', handleOutsideP
 watch([temporalTypes, () => props.modelValue.hasValue ? props.modelValue.dataType : undefined], () => {
   closeTemporal(temporalOpen.value && !!temporalWrapper.value?.contains(document.activeElement))
 })
+
+// Dismiss pending menu focus without requesting a type change during restoration.
+watch(() => queryStore.restorationRevision, () => closeTemporal(), { flush: 'sync' })
 
 // Request a supported type change; the parent performs the transition through the store.
 function changeType(selected: ValueDataType) {
@@ -254,6 +262,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
     <ConditionFieldInput
       v-if="selectedValue.dataType === 'field' && selectedValue.dataShape === 'single'"
       class="field-value-input"
+      :session-key="`${sessionKey}:single`"
       :model-value="{ name: selectedValue.value, modifier: null }"
       :options="fieldOptions"
       label="Field value"
@@ -266,6 +275,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
       class="value-range"
     >
       <ConditionFieldInput
+        :session-key="`${sessionKey}:range:0`"
         :model-value="{ name: selectedValue.value[0], modifier: null }"
         :options="fieldOptions"
         label="From field"
@@ -273,6 +283,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
         @update:model-value="editValue($event.name, 0)"
       />
       <ConditionFieldInput
+        :session-key="`${sessionKey}:range:1`"
         :model-value="{ name: selectedValue.value[1], modifier: null }"
         :options="fieldOptions"
         label="To field"
@@ -283,6 +294,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
     <ConditionScalarInput
       v-else-if="selectedValue.dataType !== 'field' && selectedValue.dataShape === 'single'"
       :key="`${selectedValue.dataType}-single`"
+      :session-key="`${sessionKey}:single`"
       :data-type="selectedValue.dataType"
       :model-value="selectedValue.value"
       label="Value"
@@ -295,12 +307,14 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
       class="value-range"
     >
       <ConditionScalarInput
+        :session-key="`${sessionKey}:range:0`"
         :data-type="selectedValue.dataType"
         :model-value="selectedValue.value[0]"
         label="From"
         @update:model-value="editValue($event, 0)"
       />
       <ConditionScalarInput
+        :session-key="`${sessionKey}:range:1`"
         :data-type="selectedValue.dataType"
         :model-value="selectedValue.value[1]"
         label="To"
@@ -310,6 +324,7 @@ function editValue(value: string | number | boolean, endpoint: 0 | 1 = 0) {
     <ConditionListInput
       v-else-if="selectedValue.dataShape === 'list'"
       :key="`${selectedValue.dataType}-list`"
+      :session-key="`${sessionKey}:list`"
       :model-value="selectedValue"
       :field-options="fieldOptions"
       @update:model-value="emit('update:modelValue', $event)"

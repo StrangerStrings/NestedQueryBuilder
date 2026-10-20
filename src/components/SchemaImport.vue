@@ -43,6 +43,7 @@ function importSchema() {
   <section aria-label="Schema">
     <form v-if="queryStore.adapter.importSchemaSql" class="schema-form" @submit.prevent="importSchema">
       <textarea
+        data-native-history
         id="schema-sql"
         :aria-label="schemaImportLabel"
         v-model="schemaSql"

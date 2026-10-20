@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { convertConditionValue } from '../../utils/convertConditionValue'
+import { useQueryStore } from '../../stores/queryStore'
+import { useQueryInputSession } from '../../composables/useQueryInputSession'
 import BooleanValueInput from './BooleanValueInput.vue'
 import TemporalValueInput from './TemporalValueInput.vue'
 
 const props = defineProps<{
   dataType: 'text' | 'number' | 'boolean' | 'date' | 'time' | 'datetime'
   modelValue: string | number | boolean
+  sessionKey: string
   label: string
   hideLabel?: boolean
 }>()
@@ -16,20 +19,42 @@ const emit = defineEmits<{
 }>()
 
 const numberInput = ref<HTMLInputElement>()
+const textInput = ref<HTMLInputElement>()
 let pendingNumber: number | undefined
+const queryStore = useQueryStore()
+const { beginEditing, finishEditing } = useQueryInputSession('edit value', finalizeEditing)
+
+// Normalize an owned numeric draft once before the store completes its session.
+function finalizeEditing() {
+  if (props.dataType === 'number') commitNumber()
+}
+
+// Leave composition Enter untouched while completing ordinary single-line edits.
+function handleEnter(event: KeyboardEvent) {
+  if (event.isComposing) return
+  event.preventDefault()
+  finishEditing()
+}
+
+// Discard pending numeric feedback when history replaces the model.
+watch(() => queryStore.restorationRevision, () => {
+  pendingNumber = undefined
+}, { flush: 'sync' })
 
 // Write only external changes or committed values, preserving the browser's unfinished numeric draft.
 function syncNumberInput() {
   if (numberInput.value) numberInput.value.value = String(props.modelValue)
+  if (textInput.value) textInput.value.value = String(props.modelValue)
 }
 
 onMounted(syncNumberInput)
 
 // Ignore feedback from our own numeric edit; type changes and external values reset the draft.
 watch(
-  [() => props.modelValue, () => props.dataType],
-  ([value, dataType], [, previousType]) => {
-    const isFeedback = dataType === previousType && Object.is(value, pendingNumber)
+  [() => props.modelValue, () => props.dataType, () => queryStore.restorationRevision],
+  // Restoration always resets the browser, even when the stored value is unchanged.
+  ([value, dataType, revision], [, previousType, previousRevision]) => {
+    const isFeedback = revision === previousRevision && dataType === previousType && Object.is(value, pendingNumber)
     pendingNumber = undefined
     if (!isFeedback) syncNumberInput()
   },
@@ -38,15 +63,18 @@ watch(
 
 // Remember the emitted number until Vue has applied the parent's response.
 function publishNumber(value: number) {
+  const revision = queryStore.restorationRevision
   pendingNumber = value
   emit('update:modelValue', value)
+  // Ignore feedback cleanup belonging to a query that has since been restored.
   nextTick(() => {
-    if (Object.is(pendingNumber, value)) pendingNumber = undefined
+    if (revision === queryStore.restorationRevision && Object.is(pendingNumber, value)) pendingNumber = undefined
   })
 }
 
 // Publish complete finite numbers without assigning to the input's visible draft.
 function editNumber(event: Event) {
+  beginEditing(props.sessionKey)
   const input = event.currentTarget as HTMLInputElement
   if (!input.validity.badInput && Number.isFinite(input.valueAsNumber)) {
     publishNumber(input.valueAsNumber)
@@ -54,8 +82,9 @@ function editNumber(event: Event) {
 }
 
 // Resolve blank or unfinished input with the shared conversion rules on blur or Enter.
-function commitNumber(event: Event) {
-  const input = event.currentTarget as HTMLInputElement
+function commitNumber() {
+  const input = numberInput.value
+  if (!input) return
   const converted = convertConditionValue(
     { hasValue: true, dataType: 'text', dataShape: 'single', value: input.value },
     { hasValue: true, dataType: 'number', dataShape: 'single', value: 0 },
@@ -68,6 +97,7 @@ function commitNumber(event: Event) {
 
 // Publish text directly without applying value transitions.
 function editText(event: Event) {
+  beginEditing(props.sessionKey)
   emit('update:modelValue', (event.currentTarget as HTMLInputElement).value)
 }
 </script>
@@ -77,10 +107,13 @@ function editText(event: Event) {
     <span v-if="!hideLabel">{{ label }}</span>
     <input
       v-if="dataType === 'text'"
+      ref="textInput"
       type="text"
       :value="modelValue"
       :aria-label="label"
       @input="editText"
+      @blur="finishEditing"
+      @keydown.enter="handleEnter"
     />
     <input
       v-else-if="dataType === 'number'"
@@ -89,12 +122,13 @@ function editText(event: Event) {
       step="any"
       :aria-label="label"
       @input="editNumber"
-      @blur="commitNumber"
-      @keydown.enter.prevent="commitNumber"
+      @blur="finishEditing"
+      @keydown.enter="handleEnter"
     />
     <TemporalValueInput
       v-else-if="dataType === 'date' || dataType === 'time' || dataType === 'datetime'"
       :data-type="dataType"
+      :session-key="sessionKey"
       :model-value="typeof modelValue === 'string' ? modelValue : ''"
       :label="label"
       @update:model-value="emit('update:modelValue', $event)"

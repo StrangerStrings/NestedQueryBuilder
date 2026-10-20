@@ -1,17 +1,28 @@
 <script setup lang="ts">
+import { useQueryStore } from '../../stores/queryStore'
+
 defineProps<{ modelValue: boolean }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
 }>()
+const queryStore = useQueryStore()
+
+// Treat each Boolean choice as a discrete action after any pending input finalization.
+function chooseValue(value: boolean) {
+  // Keep the model emission inside the store's balanced action boundary.
+  queryStore.runQueryAction('change boolean value', () => {
+    emit('update:modelValue', value)
+  })
+}
 </script>
 
 <template>
   <div class="boolean-value-input" role="group">
-    <button type="button" :aria-pressed="modelValue" @click="emit('update:modelValue', true)">
+    <button type="button" :aria-pressed="modelValue" @click="chooseValue(true)">
       True
     </button>
-    <button type="button" :aria-pressed="!modelValue" @click="emit('update:modelValue', false)">
+    <button type="button" :aria-pressed="!modelValue" @click="chooseValue(false)">
       False
     </button>
   </div>

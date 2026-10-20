@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useId } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
-import { getElasticsearchParameterNames, type ElasticsearchParameterName } from '../databases/elasticsearch/parameters'
+import { useQueryInputSession } from '../composables/useQueryInputSession'
+import { getElasticsearchParameterNames, initialParameter, type ElasticsearchParameterName } from '../databases/elasticsearch/parameters'
 import type { ElasticsearchConditionParameter, QueryCondition } from '../types/query'
 
 const props = defineProps<{ condition: QueryCondition }>()
@@ -9,6 +10,7 @@ const queryStore = useQueryStore()
 const editor = ref<HTMLElement | null>(null)
 const addButton = ref<HTMLButtonElement | null>(null)
 const editorId = useId()
+const { beginEditing, finishEditing } = useQueryInputSession('edit optional parameter')
 const labels: Record<ElasticsearchParameterName, string> = {
   operator: 'Any/all words',
   fuzziness: 'Fuzziness',
@@ -35,17 +37,6 @@ const nextParameter = computed(() => supported.value.find(
   ),
 ))
 
-// Initialise each selected parameter with its approved starting value.
-function initialParameter(name: ElasticsearchParameterName): ElasticsearchConditionParameter {
-  switch (name) {
-    case 'operator': return { name, value: 'or' }
-    case 'fuzziness': return { name, value: 'AUTO' }
-    case 'slop': return { name, value: 0 }
-    case 'minimum_should_match': return { name, value: 0 }
-    case 'case_insensitive': return { name, value: false }
-  }
-}
-
 // Keep a row's own selection available while excluding duplicates elsewhere.
 function availableParameters(index: number) {
   return supported.value.filter(
@@ -57,19 +48,39 @@ function availableParameters(index: number) {
   )
 }
 
-// Append the first unused parameter through the existing condition update path.
+// Append the first unused parameter as one discrete query action.
 function addParameter() {
-  if (!nextParameter.value) return
-  queryStore.updateCondition(props.condition.id, {
-    parameters: [...rows.value, initialParameter(nextParameter.value)],
+  // Resolve available names after any pending input has finished.
+  queryStore.runQueryAction('add optional parameter', () => {
+    if (!nextParameter.value) return
+    queryStore.updateCondition(props.condition.id, {
+      parameters: [...rows.value, initialParameter(nextParameter.value)],
+    })
   })
 }
 
-// Opening an empty editor creates its first row without resetting configured rows.
-function initialiseEditor() {
-  if (rows.value.length === 0) addParameter()
+// End single-line edits without intercepting IME composition.
+function handleEnter(event: KeyboardEvent) {
+  if (event.isComposing) return
+  event.preventDefault()
+  finishEditing()
 }
-onMounted(initialiseEditor)
+
+// Reset browser-only numeric drafts after Vue receives the restored condition.
+function syncIntegerInputs() {
+  editor.value?.querySelectorAll<HTMLInputElement>('input[data-parameter-index]').forEach(
+    // Assign even unchanged stored values to discard unfinished browser input.
+    (input) => {
+      const row = rows.value[Number(input.dataset.parameterIndex)]
+      if (row?.name === 'slop' || row?.name === 'minimum_should_match') {
+        input.value = String(row.value)
+      }
+    },
+  )
+}
+
+// Read restored props after rendering, including equal-valued browser drafts.
+watch(() => queryStore.restorationRevision, syncIntegerInputs, { flush: 'post' })
 
 // Replace one typed row without mutating other configured parameters.
 function replaceParameter(index: number, parameter: ElasticsearchConditionParameter) {
@@ -81,30 +92,47 @@ function replaceParameter(index: number, parameter: ElasticsearchConditionParame
 // Reset a changed selection to its initial value and guard against duplicate names.
 function changeParameter(index: number, event: Event) {
   const name = (event.target as HTMLSelectElement).value as ElasticsearchParameterName
-  if (availableParameters(index).includes(name)) replaceParameter(index, initialParameter(name))
+  // Check the current row and allowed names after pending input completes.
+  queryStore.runQueryAction('change optional parameter', () => {
+    if (rows.value[index] && availableParameters(index).includes(name)) {
+      replaceParameter(index, initialParameter(name))
+    }
+  })
 }
 
 // Store canonical match word selection values.
 function updateOperator(index: number, event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  if (value === 'or' || value === 'and') replaceParameter(index, { name: 'operator', value })
+  // Keep selection changes separate from a preceding integer edit.
+  queryStore.runQueryAction('change optional parameter value', () => {
+    if (rows.value[index]?.name === 'operator' && (value === 'or' || value === 'and')) {
+      replaceParameter(index, { name: 'operator', value })
+    }
+  })
 }
 
 // Store Auto as AUTO and the supported numeric fuzziness choices as numbers.
 function updateFuzziness(index: number, event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  if (value === 'AUTO') replaceParameter(index, { name: 'fuzziness', value })
-  else if (value === '0' || value === '1' || value === '2') {
-    replaceParameter(index, { name: 'fuzziness', value: Number(value) as 0 | 1 | 2 })
-  }
+  // Resolve the current row after finishing any active input session.
+  queryStore.runQueryAction('change optional parameter value', () => {
+    if (rows.value[index]?.name !== 'fuzziness') return
+    if (value === 'AUTO') replaceParameter(index, { name: 'fuzziness', value })
+    else if (value === '0' || value === '1' || value === '2') {
+      replaceParameter(index, { name: 'fuzziness', value: Number(value) as 0 | 1 | 2 })
+    }
+  })
 }
 
 // Expose and store the Boolean state without dropping an explicit Off value.
 function toggleCaseInsensitive(index: number) {
-  const row = rows.value[index]
-  if (row?.name === 'case_insensitive') {
-    replaceParameter(index, { name: row.name, value: !row.value })
-  }
+  // Read the saved Boolean only once pending input has completed.
+  queryStore.runQueryAction('toggle case insensitive parameter', () => {
+    const row = rows.value[index]
+    if (row?.name === 'case_insensitive') {
+      replaceParameter(index, { name: row.name, value: !row.value })
+    }
+  })
 }
 
 // Treat strings and unsafe, fractional or negative numbers as invalid integer parameters.
@@ -116,6 +144,7 @@ function isInvalidInteger(value: number | string) {
 function updateIntegerParameter(index: number, event: Event) {
   const row = rows.value[index]
   if (row?.name !== 'slop' && row?.name !== 'minimum_should_match') return
+  beginEditing(`${props.condition.id}:parameter:${row.name}`)
   const input = event.target as HTMLInputElement
   const draft = input.value
   const number = Number(draft)
@@ -145,15 +174,21 @@ function restrictSlopPaste(event: ClipboardEvent) {
 
 // Remove a row and move its focus to a surviving selector or the add button.
 async function removeParameter(index: number, event: Event) {
+  const revision = queryStore.restorationRevision
   const button = event.currentTarget as HTMLButtonElement
   const hadFocus = button.parentElement?.contains(document.activeElement)
-  const parameters = [...rows.value]
-  parameters.splice(index, 1)
-  queryStore.updateCondition(props.condition.id, { parameters })
+  // Remove the current row after completing any live input session.
+  const count = queryStore.runQueryAction('remove optional parameter', () => {
+    const parameters = [...rows.value]
+    parameters.splice(index, 1)
+    queryStore.updateCondition(props.condition.id, { parameters })
+    return parameters.length
+  })
   if (!hadFocus) return
   await nextTick()
+  if (revision !== queryStore.restorationRevision) return
   const selector = editor.value?.querySelector<HTMLSelectElement>(
-    `[data-parameter-index="${Math.min(index, parameters.length - 1)}"]`,
+    `select[data-parameter-index="${Math.min(index, count - 1)}"]`,
   )
   const focusTarget = selector ?? addButton.value
   focusTarget?.focus()
@@ -200,6 +235,7 @@ async function removeParameter(index: number, event: Event) {
         step="1"
         inputmode="numeric"
         :value="row.value"
+        :data-parameter-index="index"
         :aria-label="labels[row.name]"
         :aria-invalid="isInvalidInteger(row.value)"
         :aria-describedby="[row.name === 'minimum_should_match' ? `${editorId}-${index}-help` : '', isInvalidInteger(row.value) ? `${editorId}-${index}-error` : ''].filter(Boolean).join(' ') || undefined"
@@ -207,6 +243,8 @@ async function removeParameter(index: number, event: Event) {
         @beforeinput="row.name === 'slop' && restrictSlopInput($event)"
         @paste="row.name === 'slop' && restrictSlopPaste($event)"
         @input="updateIntegerParameter(index, $event)"
+        @blur="finishEditing"
+        @keydown.enter="handleEnter"
       />
       <button
         v-else-if="row.name === 'case_insensitive'"

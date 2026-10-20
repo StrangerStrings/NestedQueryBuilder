@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { createId } from '../utils/createId'
+import { useQueryStore } from '../stores/queryStore'
+import { useQueryInputSession } from '../composables/useQueryInputSession'
 import type { ConditionField, FieldModifier } from '../types/query'
 
 const props = defineProps<{
   modelValue: ConditionField
+  sessionKey: string
   options: string[]
   label?: string
   hideLabel?: boolean
@@ -19,7 +22,23 @@ const emit = defineEmits<{
 const suggestionsOpen = ref(false)
 const highlightedIndex = ref(-1)
 const optionsList = ref<HTMLUListElement | null>(null)
+const fieldInput = ref<HTMLInputElement | null>(null)
 const optionsId = `field-options-${createId()}`
+const queryStore = useQueryStore()
+const { beginEditing, finishEditing: finishInputSession } = useQueryInputSession('edit field')
+
+// Finish only this input's session and dismiss its autocomplete suggestions.
+function finishEditing() {
+  finishInputSession()
+  closeSuggestions()
+}
+
+// Dismiss stale suggestions when a snapshot replaces the query.
+watch(() => queryStore.restorationRevision, closeSuggestions, { flush: 'sync' })
+// Reset even equal-valued field drafts after restored props have rendered.
+watch(() => queryStore.restorationRevision, () => {
+  if (fieldInput.value) fieldInput.value.value = props.modelValue.name
+}, { flush: 'post' })
 
 const modifierControlsVisible = ref(props.modelValue.modifier !== null)
 const modifierId = `field-modifier-${createId()}`
@@ -35,19 +54,28 @@ watch(() => props.modelValue.modifier, (modifier) => {
 function toggleModifierControls() {
   modifierControlsVisible.value = !modifierControlsVisible.value
   if (!modifierControlsVisible.value) {
-    emit('update:modelValue', { ...props.modelValue, modifier: null })
+    // Separate an applied modifier's removal from the preceding field edit.
+    queryStore.runQueryAction('remove field modifier', () => {
+      if (props.modelValue.modifier !== null) {
+        emit('update:modelValue', { ...props.modelValue, modifier: null })
+      }
+    })
   }
 }
 
 // Apply one allowed modifier while preserving the underlying field name.
 function changeFieldModifier(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  const modifier = fieldModifiers.value.find((option) => option === value) ?? null
-  emit('update:modelValue', { ...props.modelValue, modifier })
+  // Finish pending input before resolving the field and its next modifier.
+  queryStore.runQueryAction('change field modifier', () => {
+    const value = (event.target as HTMLSelectElement).value
+    const modifier = fieldModifiers.value.find((option) => option === value) ?? null
+    emit('update:modelValue', { ...props.modelValue, modifier })
+  })
 }
 
 // Update the field name without changing its modifier and reopen suggestions.
 function handleInput(event: Event) {
+  beginEditing(props.sessionKey)
   suggestionsOpen.value = true
   highlightedIndex.value = -1
   emit('update:modelValue', {
@@ -64,23 +92,25 @@ function closeSuggestions() {
 
 // Apply a field-name suggestion without changing its modifier and dismiss the dropdown.
 function selectOption(option: string) {
+  beginEditing(props.sessionKey)
   emit('update:modelValue', { ...props.modelValue, name: option })
   closeSuggestions()
 }
 
-// Select the highlighted suggestion with Enter when not composing text.
+// Accept a highlighted suggestion before ending a non-composing Enter session.
 function handleEnter(event: KeyboardEvent) {
-  if (event.isComposing || !suggestionsOpen.value) return
-
-  const option = filteredOptions.value[highlightedIndex.value]
-  if (option === undefined) return
-
-  event.preventDefault()
-  selectOption(option)
+  if (event.isComposing) return
+  const option = suggestionsOpen.value ? filteredOptions.value[highlightedIndex.value] : undefined
+  if (option !== undefined) {
+    event.preventDefault()
+    selectOption(option)
+  }
+  finishEditing()
 }
 
 // Move the keyboard highlight through suggestions and keep it in view.
 async function moveHighlight(direction: 1 | -1) {
+  const revision = queryStore.restorationRevision
   const count = filteredOptions.value.length
   if (!count) return
 
@@ -93,6 +123,7 @@ async function moveHighlight(direction: 1 | -1) {
       : (highlightedIndex.value + direction + count) % count
 
   await nextTick()
+  if (revision !== queryStore.restorationRevision) return
   optionsList.value?.children[highlightedIndex.value]?.scrollIntoView({ block: 'nearest' })
 }
 
@@ -118,6 +149,7 @@ watch(filteredOptions, () => {
         <label class="field-input">
           <span v-if="!hideLabel">{{ label ?? 'Field' }}</span>
           <input
+            ref="fieldInput"
             :value="modelValue.name"
             type="text"
             :aria-label="label ?? 'Field'"
@@ -130,7 +162,7 @@ watch(filteredOptions, () => {
             "
             @focus="suggestionsOpen = true"
             @input="handleInput"
-            @blur="closeSuggestions"
+            @blur="finishEditing"
             @keydown.esc="closeSuggestions"
             @keydown.down.prevent="moveHighlight(1)"
             @keydown.up.prevent="moveHighlight(-1)"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent, h, onMounted, ref, watch } from 'vue'
 import { useQueryStore } from './stores/queryStore'
+import { useQueryHistoryShortcuts } from './composables/useQueryHistoryShortcuts'
 import { databaseDefinitions } from './databases/DatabaseDefinitions'
 
 import QueryBuilder from './components/QueryBuilder.vue'
@@ -31,6 +32,7 @@ type Tab = 'builder' | 'output' | 'import' | 'schema' | 'databases'
 const activeTab = ref<Tab>('builder')
 const mobileEditorOpen = ref(false)
 const queryStore = useQueryStore()
+const { historyAnnouncement } = useQueryHistoryShortcuts()
 
 // Load the saved database before mounting views that use its capabilities.
 onMounted(() => {
@@ -67,6 +69,13 @@ watch(
 <template>
   <div class="app-shell" :class="{ 'builder-active': activeTab === 'builder' }">
     <div
+      class="query-history-status"
+      role="status"
+      :aria-live="mobileEditorOpen ? 'off' : 'polite'"
+      aria-atomic="true"
+      :aria-hidden="mobileEditorOpen || undefined"
+    >{{ mobileEditorOpen ? '' : historyAnnouncement }}</div>
+    <div
       v-if="queryStore.databaseReady"
       class="top-navigation"
       :inert="!!queryStore.databaseLoading || mobileEditorOpen"
@@ -95,6 +104,7 @@ watch(
         <QueryBuilder
           v-if="activeTab === 'builder'"
           :key="`builder-${queryStore.database}`"
+          :history-announcement="historyAnnouncement"
           @mobile-editor-change="mobileEditorOpen = $event"
         />
         <QueryPreview v-else-if="activeTab === 'output'" :key="`output-${queryStore.database}`" />
@@ -115,6 +125,18 @@ watch(
 </template>
 
 <style scoped>
+:global(.query-history-status) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 :global(body) {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

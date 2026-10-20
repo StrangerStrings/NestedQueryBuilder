@@ -7,6 +7,10 @@ import BuilderSettings from './BuilderSettings.vue'
 import ConditionPanel from './ConditionPanel.vue'
 import QueryGroup from './QueryGroup.vue'
 
+defineProps<{
+  historyAnnouncement: string
+}>()
+
 const queryStore = useQueryStore()
 const selectedConditionId = ref<string | null>(null)
 const builderContent = ref<HTMLElement | null>(null)
@@ -17,15 +21,6 @@ let builderScroll: { top: number; left: number } | null = null
 const emit = defineEmits<{
   'mobile-editor-change': [open: boolean]
 }>()
-
-// Drop selection immediately when the query root is replaced by a switch or import.
-watch(
-  () => queryStore.query.id,
-  () => {
-    selectedConditionId.value = null
-  },
-  { flush: 'sync' },
-)
 
 // Resolve the selection from the current tree so deleted conditions close their panel.
 function findSelectedCondition(group: QueryGroupModel): QueryCondition | null {
@@ -41,6 +36,25 @@ function findSelectedCondition(group: QueryGroupModel): QueryCondition | null {
 
 // Keep the details panel tied to a condition that still exists in the query.
 const selectedCondition = computed(() => findSelectedCondition(queryStore.query))
+
+// Forget a removed selection immediately so a later redo cannot reopen its panel.
+watch(() => queryStore.restorationRevision, () => {
+  if (selectedConditionId.value && !selectedCondition.value) {
+    selectedConditionId.value = null
+  }
+}, { flush: 'sync' })
+
+// Reconcile after query assignment and its restoration revision have both settled.
+watch(
+  [() => queryStore.query.id, () => queryStore.restorationRevision, selectedCondition],
+  // Retain surviving selection only for restoration; imports and switches keep their reset behavior.
+  ([rootId, revision, condition], [previousRootId, previousRevision]) => {
+    const restored = revision !== previousRevision
+    if ((!restored && rootId !== previousRootId) || !condition) {
+      selectedConditionId.value = null
+    }
+  },
+)
 
 // Restrict the covered UI only while a valid condition is open on a phone.
 const mobileEditorOpen = computed(() => isMobile.value && !!selectedCondition.value)
@@ -64,6 +78,7 @@ watch(
   [mobileEditorOpen, () => selectedCondition.value?.id],
   // Wait for inertness and panel removal to update before restoring focus and scroll offsets.
   async ([open, conditionId], [wasOpen, previousConditionId]) => {
+    const revision = queryStore.restorationRevision
     if (open && !wasOpen && builderContent.value) {
       builderScroll = {
         top: builderContent.value.scrollTop,
@@ -72,6 +87,7 @@ watch(
     }
     if (open !== wasOpen) emit('mobile-editor-change', open)
     await nextTick()
+    if (revision !== queryStore.restorationRevision) return
     if (!mobileEditorOpen.value && builderScroll && builderContent.value) {
       builderContent.value.scrollTop = builderScroll.top
       builderContent.value.scrollLeft = builderScroll.left
@@ -129,6 +145,7 @@ function closeConditionPanel() {
         :key="selectedCondition.id"
         :condition="selectedCondition"
         :mobile="mobileEditorOpen"
+        :history-announcement="historyAnnouncement"
         @close="closeConditionPanel"
       />
     </div>

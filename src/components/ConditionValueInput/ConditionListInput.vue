@@ -5,9 +5,11 @@ import { createId } from '../../utils/createId'
 import ConditionScalarInput from './ConditionScalarInput.vue'
 import ConditionFieldInput from '../ConditionFieldInput.vue'
 import { temporalDefaults } from '../../utils/temporalValue'
+import { useQueryStore } from '../../stores/queryStore'
 
-const props = defineProps<{ modelValue: ConditionValue; fieldOptions?: string[] }>()
+const props = defineProps<{ modelValue: ConditionValue; fieldOptions?: string[]; sessionKey: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: ConditionValue] }>()
+const queryStore = useQueryStore()
 
 // Capture local defaults once for each new or empty list operation.
 function valueDefaults() {
@@ -15,7 +17,14 @@ function valueDefaults() {
 }
 const root = ref<HTMLElement>()
 const rows = shallowRef<{ id: string; value: string | number | boolean }[]>([])
-const pendingValues = new WeakSet<object>()
+let pendingValues = new WeakSet<object>()
+let restoring = false
+
+// Reject old row feedback as soon as the store replaces the query.
+watch(() => queryStore.restorationRevision, () => {
+  restoring = true
+  pendingValues = new WeakSet<object>()
+}, { flush: 'sync' })
 
 // Accept literal and field-reference lists without converting their values.
 const listValue = computed(() => {
@@ -32,22 +41,26 @@ const listValue = computed(() => {
 // Preserve local identities for emitted feedback and rebuild rows for external replacements.
 function syncRows() {
   const incoming = toRaw(props.modelValue)
-  if (pendingValues.delete(incoming)) return
+  if (!restoring && pendingValues.delete(incoming)) return
 
   const current = listValue.value
   if (!current) {
     rows.value = []
+    restoring = false
     return
   }
 
   const values = current.value.length ? current.value : [valueDefaults()[current.dataType]]
   rows.value = values.map((value) => ({ id: createId(), value }))
+  restoring = false
 }
 
-watch(() => props.modelValue, syncRows, { immediate: true, deep: true })
+// Rebuild restored rows even when their values match the previous list.
+watch([() => props.modelValue, () => queryStore.restorationRevision], syncRows, { immediate: true, deep: true })
 
 // Publish typed literal or field arrays, keeping row identities exclusively inside the editor.
 function publishRows() {
+  if (restoring) return
   const current = listValue.value
   if (!current || !rows.value.length) return
 
@@ -73,6 +86,7 @@ function publishRows() {
 
 // Edit one row without changing the identities or values of the other rows.
 function editRow(id: string, value: string | number | boolean) {
+  if (restoring) return
   if (!rows.value.some((row) => row.id === id)) return
   rows.value = rows.value.map((row) => (row.id === id ? { ...row, value } : row))
   publishRows()
@@ -80,7 +94,9 @@ function editRow(id: string, value: string | number | boolean) {
 
 // Focus the row's input or selected boolean button after structural changes.
 async function focusRow(id: string) {
+  const revision = queryStore.restorationRevision
   await nextTick()
+  if (revision !== queryStore.restorationRevision) return
   root.value
     ?.querySelector<HTMLElement>(
       `[data-row-id="${id}"] input, [data-row-id="${id}"] button[aria-pressed="true"]`,
@@ -90,23 +106,29 @@ async function focusRow(id: string) {
 
 // Append one default item and focus it without recreating existing rows.
 function addRow() {
-  const current = listValue.value
-  if (!current) return
-  const row = { id: createId(), value: valueDefaults()[current.dataType] }
-  rows.value = [...rows.value, row]
-  publishRows()
-  void focusRow(row.id)
+  // Normalize any pending row draft before reading and extending the list.
+  queryStore.runQueryAction('add list item', () => {
+    const current = listValue.value
+    if (!current) return
+    const row = { id: createId(), value: valueDefaults()[current.dataType] }
+    rows.value = [...rows.value, row]
+    publishRows()
+    void focusRow(row.id)
+  })
 }
 
 // Retain at least one item and focus the next row, or the previous row when removing the last.
 function removeRow(id: string) {
-  if (rows.value.length <= 1) return
-  const index = rows.value.findIndex((row) => row.id === id)
-  if (index === -1) return
-  rows.value = rows.value.filter((row) => row.id !== id)
-  publishRows()
-  const neighbour = rows.value[Math.min(index, rows.value.length - 1)]
-  if (neighbour) void focusRow(neighbour.id)
+  // Complete the edited row before the structural action removes or shifts it.
+  queryStore.runQueryAction('remove list item', () => {
+    if (rows.value.length <= 1) return
+    const index = rows.value.findIndex((row) => row.id === id)
+    if (index === -1) return
+    rows.value = rows.value.filter((row) => row.id !== id)
+    publishRows()
+    const neighbour = rows.value[Math.min(index, rows.value.length - 1)]
+    if (neighbour) void focusRow(neighbour.id)
+  })
 }
 </script>
 
@@ -115,6 +137,7 @@ function removeRow(id: string) {
     <div v-for="(row, index) in rows" :key="row.id" :data-row-id="row.id" class="list-row">
       <ConditionFieldInput
         v-if="listValue.dataType === 'field'"
+        :session-key="`${sessionKey}:${row.id}`"
         :model-value="{ name: String(row.value), modifier: null }"
         :options="fieldOptions ?? []"
         :label="`Field value ${index + 1}`"
@@ -123,6 +146,7 @@ function removeRow(id: string) {
       />
       <ConditionScalarInput
         v-else
+        :session-key="`${sessionKey}:${row.id}`"
         :data-type="listValue.dataType"
         :model-value="row.value"
         :label="`Value ${index + 1}`"

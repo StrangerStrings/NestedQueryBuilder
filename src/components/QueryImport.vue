@@ -46,6 +46,7 @@ function importFilter() {
       @submit.prevent="importFilter"
     >
       <textarea
+        data-native-history
         :id="sqlFilterId"
         :aria-label="queryImportLabel"
         v-model="sqlFilter"

@@ -3,7 +3,7 @@ import { computed, ref, useId, watch } from 'vue'
 import ElasticsearchParameterEditor from './ElasticsearchParameterEditor.vue'
 import MongoDBRegexParameterEditor from './MongoDBRegexParameterEditor.vue'
 import { useQueryStore } from '../stores/queryStore'
-import { getElasticsearchParameterNames } from '../databases/elasticsearch/parameters'
+import { getElasticsearchParameterNames, initialParameter } from '../databases/elasticsearch/parameters'
 import type { QueryCondition } from '../types/query'
 
 const props = defineProps<{ condition: QueryCondition }>()
@@ -49,20 +49,44 @@ watch(
   },
 )
 
-// Clear explicit controls on collapse while preserving MongoDB's imported Unicode flag.
+// Reflect restored stored rows without initializing or saving editor state.
+watch(
+  // Wait for restored condition props before deciding whether to display their rows.
+  () => queryStore.restorationRevision,
+  // Reopen retained parameters and close an editor whose opening was undone.
+  () => {
+    parametersExpanded.value = supportsParameters.value && !!props.condition.parameters?.length
+  },
+  { flush: 'post' },
+)
+
+// Group opening defaults or collapse removal while preserving MongoDB's imported Unicode flag.
 function toggleParameters() {
-  if (parametersExpanded.value) {
-    const options = props.condition.parameters?.find(
-      // Preserve u separately from the four editable flags.
-      (parameter) => parameter.name === '$options',
-    )
-    queryStore.updateCondition(props.condition.id, {
-      parameters: queryStore.database === 'mongodb' && options?.name === '$options' && options.value.includes('u')
-        ? [{ name: '$options', value: 'u' }]
-        : [],
-    })
-  }
-  parametersExpanded.value = !parametersExpanded.value
+  const opening = !parametersExpanded.value
+  // Finish pending input before reading or replacing the configured rows.
+  queryStore.runQueryAction(opening ? 'open optional parameters' : 'remove optional parameters', () => {
+    if (!opening) {
+      const options = props.condition.parameters?.find(
+        // Preserve u separately from the four editable flags.
+        (parameter) => parameter.name === '$options',
+      )
+      queryStore.updateCondition(props.condition.id, {
+        parameters: queryStore.database === 'mongodb' && options?.name === '$options' && options.value.includes('u')
+          ? [{ name: '$options', value: 'u' }]
+          : [],
+      })
+    } else if (supportsParameters.value && !props.condition.parameters?.length) {
+      if (queryStore.database === 'mongodb') {
+        queryStore.updateCondition(props.condition.id, { parameters: [{ name: '$options', value: '' }] })
+      } else {
+        const name = getElasticsearchParameterNames(props.condition.operatorId)[0]
+        if (name) {
+          queryStore.updateCondition(props.condition.id, { parameters: [initialParameter(name)] })
+        }
+      }
+    }
+    parametersExpanded.value = opening
+  })
 }
 </script>
 

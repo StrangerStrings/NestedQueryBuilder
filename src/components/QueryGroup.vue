@@ -131,10 +131,12 @@ function startSorting(event: { item: HTMLElement; from: HTMLElement }) {
   updateInsertionFeedback({ ...event, to: event.from })
 }
 
-// Commit once via Pinia, converting full-array positions to original-array boundaries.
+// Finalize input before validating the drop, then commit once via Pinia.
 function finishSorting(event: QuerySortEvent) {
   const drag = sorting.drag.value
   if (drag && event.item !== drag.item) return
+  // Normalization can invalidate the captured tree, source, or proposed destination.
+  if (drag?.proposal) queryStore.finishInputSession()
   const proposal = drag?.proposal
   if (
     drag && proposal && validDrag(drag) && event.from === drag.from &&

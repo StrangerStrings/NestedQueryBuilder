@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useQueryStore } from '../stores/queryStore'
 import type { QueryCondition } from '../types/query'
 
@@ -25,8 +25,28 @@ const options = computed(() => {
   return parameter?.name === '$options' ? parameter.value : ''
 })
 
-// Keep disabled row selections local while exporting only enabled native flags.
-const rows = ref<RegexFlag[]>(flags.filter((flag) => options.value.includes(flag)))
+// Read enabled editable flags without persisting local disabled row selections.
+function storedRows(): RegexFlag[] {
+  return flags.filter(
+    // Imported Unicode support remains stored without an editable row.
+    (flag) => options.value.includes(flag),
+  )
+}
+
+// Opening already stores defaults in the parent action; mounting changes only local rows.
+const rows = ref<RegexFlag[]>(storedRows())
+if (!rows.value.length) rows.value.push('i')
+
+// Reconcile local rows from restored flags without saving or recreating disabled selections.
+watch(
+  // Wait for the restored condition to reach this editor's props.
+  () => queryStore.restorationRevision,
+  // Disabled local selections may disappear when their stored flags are restored.
+  () => {
+    rows.value = storedRows()
+  },
+  { flush: 'post' },
+)
 
 // Offer the first flag that is not already displayed.
 const nextParameter = computed(() => flags.find((flag) => !rows.value.includes(flag)))
@@ -39,18 +59,15 @@ function saveOptions(enabled: Set<string>) {
   })
 }
 
-// Append one disabled row without changing existing flags.
+// Append one local disabled row and record only a genuine stored-query change.
 function addParameter() {
-  if (!nextParameter.value) return
-  rows.value.push(nextParameter.value)
-  saveOptions(new Set(options.value))
+  // Resolve available rows after finishing any pending query input.
+  queryStore.runQueryAction('add regex parameter', () => {
+    if (!nextParameter.value) return
+    rows.value.push(nextParameter.value)
+    saveOptions(new Set(options.value))
+  })
 }
-
-// Show imported flags or one initial row when opening the editor.
-function initialiseEditor() {
-  if (!rows.value.length) addParameter()
-}
-onMounted(initialiseEditor)
 
 // Keep the current selection available and prevent duplicate flag rows.
 function availableParameters(index: number) {
@@ -60,34 +77,48 @@ function availableParameters(index: number) {
 // Reset a newly selected flag to No and remove the previous flag from output.
 function changeParameter(index: number, event: Event) {
   const flag = (event.target as HTMLSelectElement).value as RegexFlag
-  const previous = rows.value[index]
-  if (!previous || !availableParameters(index).includes(flag)) return
-  const enabled = new Set(options.value)
-  enabled.delete(previous)
-  rows.value[index] = flag
-  saveOptions(enabled)
+  // Resolve the previous flag after pending input finishes; unchanged output retains redo.
+  queryStore.runQueryAction('change regex parameter', () => {
+    const previous = rows.value[index]
+    if (!previous || !availableParameters(index).includes(flag)) return
+    const enabled = new Set(options.value)
+    enabled.delete(previous)
+    rows.value[index] = flag
+    saveOptions(enabled)
+  })
 }
 
 // Toggle the selected flag without altering the pattern or other options.
-function toggleFlag(flag: RegexFlag) {
-  const enabled = new Set(options.value)
-  if (enabled.has(flag)) enabled.delete(flag)
-  else enabled.add(flag)
-  saveOptions(enabled)
+function toggleFlag(index: number) {
+  // Read current flags only after any pending query input has completed.
+  queryStore.runQueryAction('toggle regex parameter', () => {
+    const flag = rows.value[index]
+    if (!flag) return
+    const enabled = new Set(options.value)
+    if (enabled.has(flag)) enabled.delete(flag)
+    else enabled.add(flag)
+    saveOptions(enabled)
+  })
 }
 
 // Remove a flag and return keyboard focus to a remaining selector or add button.
 async function removeParameter(index: number, event: Event) {
+  const revision = queryStore.restorationRevision
   const button = event.currentTarget as HTMLButtonElement
   const hadFocus = button.parentElement?.contains(document.activeElement)
-  const flag = rows.value[index]
-  if (!flag) return
-  const enabled = new Set(options.value)
-  enabled.delete(flag)
-  rows.value.splice(index, 1)
-  saveOptions(enabled)
-  if (!hadFocus) return
+  // Resolve and remove the current flag in a single discrete action.
+  const removed = queryStore.runQueryAction('remove regex parameter', () => {
+    const flag = rows.value[index]
+    if (!flag) return false
+    const enabled = new Set(options.value)
+    enabled.delete(flag)
+    rows.value.splice(index, 1)
+    saveOptions(enabled)
+    return true
+  })
+  if (!removed || !hadFocus) return
   await nextTick()
+  if (revision !== queryStore.restorationRevision) return
   const selector = editor.value?.querySelector<HTMLSelectElement>(
     `[data-parameter-index="${Math.min(index, rows.value.length - 1)}"]`,
   )
@@ -115,7 +146,7 @@ async function removeParameter(index: number, event: Event) {
         :aria-label="labels[flag]"
         :aria-checked="options.includes(flag)"
         class="case-toggle"
-        @click="toggleFlag(flag)"
+        @click="toggleFlag(index)"
       >
         {{ options.includes(flag) ? 'Yes' : 'No' }}
       </button>

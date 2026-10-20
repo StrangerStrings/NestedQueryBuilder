@@ -7,6 +7,7 @@ import ConditionValueInput from './ConditionValueInput/ConditionValueInput.vue'
 import ConditionOptionalParameters from './ConditionOptionalParameters.vue'
 import QueryDisplay from './QueryDisplay.vue'
 import { useQueryStore } from '../stores/queryStore'
+import { useQueryInputSession } from '../composables/useQueryInputSession'
 import { useSettingsStore } from '../stores/settingsStore'
 import type { QueryCondition } from '../types/query'
 import { resolveConditionColourAppearance } from '../colours/palette'
@@ -17,13 +18,27 @@ const rawConditionId = useId()
 const editorError = ref<string | null>(null)
 const panel = ref<HTMLElement | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
+const rawInput = ref<HTMLTextAreaElement | null>(null)
 const viewportHeight = ref('100dvh')
 const viewportTop = ref('0px')
 
 const props = defineProps<{
   condition: QueryCondition
   mobile?: boolean
+  historyAnnouncement: string
 }>()
+const rawSessionKey = `${props.condition.id}:raw`
+const { beginEditing: beginRawInput, finishEditing: finishRawInput } =
+  useQueryInputSession('edit raw condition')
+
+// Clear editor feedback when history restores the query.
+watch(() => queryStore.restorationRevision, () => {
+  editorError.value = null
+}, { flush: 'sync' })
+// Replace equal-valued Raw drafts after rendering without publishing input.
+watch(() => queryStore.restorationRevision, () => {
+  if (rawInput.value) rawInput.value.value = props.condition.rawSql ?? ''
+}, { flush: 'post' })
 
 // Size the overlay to the visible viewport when the keyboard or browser chrome reduces its space.
 function updateViewport() {
@@ -83,6 +98,7 @@ function releaseMobileListeners() {
 
 // Change presentation without moving focus out of an existing input or recreating its browser draft.
 async function updateMobileMode(mobile: boolean | undefined) {
+  const revision = queryStore.restorationRevision
   releaseMobileListeners()
   if (mobile) {
     updateViewport()
@@ -93,7 +109,7 @@ async function updateMobileMode(mobile: boolean | undefined) {
     window.visualViewport?.addEventListener('scroll', updateViewport)
   }
   await nextTick()
-  if (!panel.value || props.mobile !== mobile) return
+  if (!panel.value || props.mobile !== mobile || revision !== queryStore.restorationRevision) return
   if (mobile) {
     const active = document.activeElement
     if (
@@ -111,9 +127,11 @@ onBeforeUnmount(releaseMobileListeners)
 
 // Let the focused input finish its existing blur commit before the parent removes the editor.
 async function requestClose() {
+  const revision = queryStore.restorationRevision
   const active = document.activeElement
   if (active instanceof HTMLElement && panel.value?.contains(active)) active.blur()
   await nextTick()
+  if (revision !== queryStore.restorationRevision || !panel.value) return
   emit('close')
 }
 
@@ -172,17 +190,21 @@ watch(
   },
 )
 
-// Initialise the raw condition directly from its current generated clause.
+// Record entry into Raw mode using the generated clause after input finalization.
 function openRawEditor() {
   if (!supportsRaw.value || editingMode.value === 'raw') return
-  const sql = conditionSql.value
-  queryStore.updateCondition(props.condition.id, { rawSql: sql.success ? sql.sql : '' })
+  // Include representation changes and parameter cleanup in a single query action.
+  queryStore.runQueryAction('switch to raw editor', () => {
+    const sql = conditionSql.value
+    queryStore.updateCondition(props.condition.id, { rawSql: sql.success ? sql.sql : '' })
+  })
   editorError.value = null
 }
 
 // Write each keystroke directly to the condition, including empty or invalid drafts.
 function updateRawInput(event: Event) {
   if (!supportsRaw.value) return
+  beginRawInput(rawSessionKey)
   queryStore.updateCondition(props.condition.id, {
     rawSql: (event.target as HTMLTextAreaElement).value,
   })
@@ -239,6 +261,13 @@ const emit = defineEmits<{
     :aria-label="mobile ? 'Condition editor' : 'Condition details'"
     :tabindex="mobile ? -1 : 0"
   >
+    <div
+      v-if="mobile"
+      class="query-history-status"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >{{ historyAnnouncement }}</div>
     <div class="panel-header">
       <div class="editing-mode" role="group" aria-label="Condition editing mode">
         <button
@@ -272,9 +301,11 @@ const emit = defineEmits<{
         queryStore.adapter.rawCondition?.label ?? 'Raw condition'
       }}</label>
       <textarea
+        ref="rawInput"
         :id="rawConditionId"
         :value="condition.rawSql"
         @input="updateRawInput"
+        @blur="finishRawInput"
         rows="6"
         :placeholder="queryStore.adapter.rawCondition?.placeholder ?? 'status = \'online\''"
         :spellcheck="false"
@@ -285,6 +316,7 @@ const emit = defineEmits<{
     <template v-else>
       <ConditionFieldInput
         :key="condition.id"
+        :session-key="`${condition.id}:field`"
         :model-value="condition.field"
         :options="queryStore.uniqueFields"
         :modifiers="queryStore.adapter.fieldModifiers"
@@ -300,6 +332,7 @@ const emit = defineEmits<{
         :field-options="queryStore.uniqueFields"
         v-if="selectedOperator"
         :key="condition.id"
+        :session-key="`${condition.id}:value`"
         :model-value="condition.value"
         @update:model-value="queryStore.updateCondition(condition.id, { value: $event })"
         @type-change="queryStore.changeConditionValueType(condition.id, $event)"
