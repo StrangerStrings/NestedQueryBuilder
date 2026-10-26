@@ -98,11 +98,11 @@ function toggleGroupOperatorMode() {
 }
 
 .builder-control[aria-pressed='true'] {
-  color: var(--accent-primary);
+  color: var(--accent-neutral);
 }
 
 .builder-control:focus-visible {
-  outline: 2px solid var(--focus-ring-accent);
+  outline: 2px solid var(--accent-neutral);
   outline-offset: 3px;
 }
 

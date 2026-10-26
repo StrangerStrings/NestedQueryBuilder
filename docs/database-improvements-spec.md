@@ -39,7 +39,7 @@ Planned small additions for Elasticsearch:
 Elasticsearch implementation details:
 
 - Reuse the optional-parameters panel for Minimum words matched. Use a numeric input with minimum 0 and step 1; reject negative, fractional, unsafe, blank, or unfinished configured values rather than rounding or silently discarding them. Omission leaves Elasticsearch defaults unchanged.
-- Explain that Minimum words matched applies to analyzed terms and is intended for Any words; All words still requires every term. This is a condition parameter, not a group-level minimum.
+- Explain that Minimum words matched applies to analyzed terms and is intended for OR; AND still requires every term. This is a condition parameter, not a group-level minimum.
 - Store and export the configured minimum as a JSON number. Import supported nonnegative whole-number thresholds, including equivalent digit-only strings, and normalize them to numbers. Reject percentage and other expression forms in visual import rather than dropping them.
 - Add operator definitions, JSON generation, and visual import support for both prefix operators. Reuse existing text inputs and validation; no new value type or query-tree structure.
 - Keep the new prefix operators' optional parameters out of this addition; use Elasticsearch defaults. Preserve the existing root filter context and Raw JSON behavior.

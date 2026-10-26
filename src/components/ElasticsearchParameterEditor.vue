@@ -12,7 +12,7 @@ const addButton = ref<HTMLButtonElement | null>(null)
 const editorId = useId()
 const { beginEditing, finishEditing } = useQueryInputSession('edit optional parameter')
 const labels: Record<ElasticsearchParameterName, string> = {
-  operator: 'Any/all words',
+  operator: 'Operator',
   fuzziness: 'Fuzziness',
   slop: 'Slop',
   minimum_should_match: 'Minimum words matched',
@@ -211,11 +211,11 @@ async function removeParameter(index: number, event: Event) {
       <select
         v-if="row.name === 'operator'"
         :value="row.value"
-        aria-label="Any/all words"
+        aria-label="Operator"
         @change="updateOperator(index, $event)"
       >
-        <option value="or">Any</option>
-        <option value="and">All</option>
+        <option value="or">OR</option>
+        <option value="and">AND</option>
       </select>
       <select
         v-else-if="row.name === 'fuzziness'"
@@ -270,8 +270,7 @@ async function removeParameter(index: number, event: Event) {
         :id="`${editorId}-${index}-help`"
         class="parameter-help"
       >
-        Minimum analyzed terms to match, intended for Any words. All words still requires every term.
-        This applies to this condition, not its group.
+        Intended for Operator: OR (optional parameter). AND still requires every term.
       </p>
       <p
         v-if="(row.name === 'slop' || row.name === 'minimum_should_match') && isInvalidInteger(row.value)"

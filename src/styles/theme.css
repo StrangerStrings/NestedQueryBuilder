@@ -30,6 +30,7 @@
   --border-notice: #d1d5db;
   --border-error: #b42318;
   --accent-primary: #2563eb;
+  --accent-neutral: #525252;
   --text-error: #b42318;
   --text-schema-error: #b91c1c;
   --text-success: #15803d;
@@ -99,6 +100,7 @@
   --border-notice: #626275;
   --border-error: #ff9a91;
   --accent-primary: #85b5ff;
+  --accent-neutral: #d4d4d4;
   --text-error: #ffaaa1;
   --text-schema-error: #ffaaa1;
   --text-success: #8ee0aa;

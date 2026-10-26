@@ -185,7 +185,7 @@ onUnmounted(() => {
 }
 
 button:focus-visible {
-  outline: 2px solid var(--focus-ring-accent);
+  outline: 2px solid var(--accent-neutral);
   outline-offset: -3px;
 }
 
@@ -211,7 +211,7 @@ button {
 }
 
 button.active {
-  border-bottom-color: var(--accent-primary);
+  border-bottom-color: var(--accent-neutral);
   color: var(--text-primary);
   font-weight: 600;
 }

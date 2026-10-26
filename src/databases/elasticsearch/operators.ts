@@ -79,7 +79,7 @@ export const elasticsearchOperators = [
   {
     id: 'match' as const,
     label: 'analyzed match',
-    description: 'Analyzes the text and matches the resulting terms. Optional parameters select Any or All words, allow fuzzy matching, and set Minimum words matched for analyzed terms with Any words. All words still requires every term.',
+    description: 'Analyzes the text and matches the resulting terms. Optional parameters select OR or AND, allow fuzzy matching, and set Minimum words matched for analyzed terms with OR. AND still requires every term.',
     valueInput: { hasValue: true, dataShape: 'single', dataTypes: ['text'] },
   },
   {
