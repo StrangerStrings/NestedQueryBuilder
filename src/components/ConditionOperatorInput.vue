@@ -115,8 +115,7 @@ function isOperatorDisabled(operator: DatabaseOperator): boolean {
   transition: opacity 0.12s;
 }
 
-.operator-info-wrapper:hover .operator-tooltip,
-select:focus-visible ~ .operator-info-wrapper .operator-tooltip {
+.operator-info-wrapper:hover .operator-tooltip {
   visibility: visible;
   opacity: 1;
 }
