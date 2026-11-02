@@ -10,7 +10,7 @@ function toggleDragAndDropMode() {
 
 // Switch from the current appearance and persist the chosen light or dark theme.
 function toggleDarkMode() {
-  settingsStore.themePreference = settingsStore.resolvedTheme === 'dark' ? 'light' : 'dark'
+  settingsStore.setTheme(settingsStore.resolvedTheme === 'dark' ? 'light' : 'dark')
 }
 
 // Switch operator text between readable labels and database identifiers.

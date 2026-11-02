@@ -3,26 +3,14 @@
   <head>
     <meta charset="UTF-8">
     <script>
-      // Resolve appearance before styles and visible content, even when browser APIs fail.
+      // Apply the saved theme before content appears, defaulting to light mode.
       (() => {
-        let preference = 'system'
+        let appearance = 'light'
         try {
-          const storedPreference = localStorage.getItem('query-builder.theme')
-          if (['system', 'light', 'dark'].includes(storedPreference)) {
-            preference = storedPreference
-          }
+          if (localStorage.getItem('query-builder.theme') === 'dark') appearance = 'dark'
         } catch {
-          // Storage is optional; keep the default preference.
+          // Storage is optional; keep light mode when unavailable.
         }
-        let appearance = preference === 'dark' ? 'dark' : 'light'
-        if (preference === 'system') {
-          try {
-            appearance = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-          } catch {
-            // Browsers without appearance detection use light.
-          }
-        }
-        document.documentElement.dataset.themePreference = preference
         document.documentElement.dataset.theme = appearance
       })()
     </script>

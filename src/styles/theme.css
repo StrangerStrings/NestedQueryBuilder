@@ -98,48 +98,48 @@
   --border-panel: #48566c;
   --border-control: #65758d;
   --border-notice: #626275;
-  --border-error: #ff9a91;
-  --accent-primary: #85b5ff;
+  --border-error: #ce9993;
+  --accent-primary: #9aafcb;
   --accent-neutral: #d4d4d4;
-  --text-error: #ffaaa1;
-  --text-schema-error: #ffaaa1;
-  --text-success: #8ee0aa;
+  --text-error: #d6aaa4;
+  --text-schema-error: #d6aaa4;
+  --text-success: #a1c2ab;
 
   --focus-ring: #e8edf5;
-  --focus-ring-accent: #85b5ff;
-  --focus-ring-database: #b8c9e2;
+  --focus-ring-accent: #9aafcb;
+  --focus-ring-database: #b4bfce;
   --focus-ring-gap: #11151c;
-  --surface-control: #2c3b52;
-  --surface-control-hover: #36455c;
-  --surface-control-selected: #465d7d;
-  --surface-control-strong-selected: #a6caff;
+  --surface-control: #303946;
+  --surface-control-hover: #3b4451;
+  --surface-control-selected: #4c596b;
+  --surface-control-strong-selected: #acbbcf;
   --text-control-strong-selected: #111b2c;
-  --surface-suggestion-highlight: #405777;
-  --surface-icon-hover: #3b4a60;
+  --surface-suggestion-highlight: #465365;
+  --surface-icon-hover: #414b59;
   --surface-condition-action-hover: rgb(255 255 255 / 12%);
 
   --surface-database: #242d3c;
-  --surface-database-hover: #35445b;
-  --surface-database-selected: #465d7d;
+  --surface-database-hover: #3b4451;
+  --surface-database-selected: #4c596b;
   --surface-tooltip: #dce6f5;
   --text-tooltip: #172033;
   --shadow-menu: rgb(0 0 0 / 45%);
   --shadow-tooltip: rgb(0 0 0 / 40%);
-  --drag-indicator: #96c1ff;
-  --shadow-drag: rgb(133 181 255 / 50%);
+  --drag-indicator: #a3b6cf;
+  --shadow-drag: rgb(154 175 203 / 25%);
 
   --condition-empty-surface: #202a38;
-  --condition-empty-accent: #a0b3cc;
+  --condition-empty-accent: #a8b2c0;
   --condition-invalid-surface: #2d2d38;
   --condition-invalid-accent: #b0aabd;
   --text-condition-warning: #d0cbdc;
-  /* Borders also colour mode labels, so keep them bright against each group surface. */
+  /* Borders also colour mode labels, so keep muted accents readable on each group surface. */
   --group-default-surface: #414650;
-  --group-default-border: #c2bedf;
+  --group-default-border: #c1bfcc;
   --group-all-surface: #263141;
-  --group-all-border: #afbed2;
+  --group-all-border: #b4bdc9;
   --group-none-surface: #19212d;
-  --group-none-border: #94aac6;
+  --group-none-border: #9faec1;
 }
 
 input::placeholder,

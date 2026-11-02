@@ -4,10 +4,10 @@ export const rawConditionColour = {
   accent: '#c084fc',
 } as const
 
-/** Dedicated purple appearance for raw expressions on dark surfaces. */
+/** Muted purple appearance for raw expressions on dark surfaces. */
 const darkRawConditionColour = {
-  background: 'oklch(0.32 0.07 305)',
-  accent: 'oklch(0.74 0.13 305)',
+  background: 'oklch(0.32 0.035 305)',
+  accent: 'oklch(0.7 0.065 305)',
 } as const
 
 /** Base hues for the nine Soft Pastel colour families. */
@@ -31,12 +31,12 @@ export const conditionColourVariants = [
   { id: 4, lightness: 0.92, chroma: 0.04, hueOffset: 0 },
 ] as const
 
-/** Dark tinted backgrounds corresponding to the four stable variant IDs. */
+/** Muted dark backgrounds corresponding to the four stable variant IDs. */
 const darkConditionColourVariants = {
-  1: { lightness: 0.32, chroma: 0.055 },
-  2: { lightness: 0.36, chroma: 0.065 },
-  3: { lightness: 0.4, chroma: 0.085 },
-  4: { lightness: 0.28, chroma: 0.025 },
+  1: { lightness: 0.32, chroma: 0.028 },
+  2: { lightness: 0.36, chroma: 0.035 },
+  3: { lightness: 0.4, chroma: 0.045 },
+  4: { lightness: 0.28, chroma: 0.018 },
 } as const
 
 export type ConditionColourFamily = (typeof conditionColourFamilies)[number]
@@ -63,7 +63,7 @@ function oklch(lightness: number, chroma: number, hue: number): OklchColourToken
   return `oklch(${Number(lightness.toFixed(3))} ${Number(chroma.toFixed(3))} ${hue})`
 }
 
-/** Preserve each light shade and add its dark tint and contrasting accent at the same hue. */
+/** Preserve each light shade and add a muted dark tint and readable accent at the same hue. */
 function createConditionColour(
   family: ConditionColourFamily,
   variant: ConditionColourVariant,
@@ -80,7 +80,7 @@ function createConditionColour(
     accent: oklch(variant.lightness - 0.18, variant.chroma + 0.02, hue),
     dark: {
       background: oklch(darkVariant.lightness, darkVariant.chroma, hue),
-      accent: oklch(darkVariant.lightness + 0.4, darkVariant.chroma + 0.04, hue),
+      accent: oklch(darkVariant.lightness + 0.37, darkVariant.chroma + 0.02, hue),
     },
   }
 }
